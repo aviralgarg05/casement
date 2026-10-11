@@ -895,16 +895,26 @@ public enum CasementPaths {
     @discardableResult
     public static func migrateFromPreviousName() -> [String] {
         guard ProcessInfo.processInfo.environment["CASEMENT_SUPPORT_DIR"]?.isEmpty ?? true else { return [] }
+        return carryOver([(Legacy.configDirectory, configDirectory, "settings"),
+                          (Legacy.supportDirectory, supportDirectory, "app data")])
+    }
+
+    /// The move itself, over whatever directories it is handed. Separate from
+    /// `migrateFromPreviousName` only so it can be driven over temporary directories in a test:
+    /// the real entry point refuses to run when `CASEMENT_SUPPORT_DIR` is set, which is how a test
+    /// sandboxes itself, so the two cannot be the same function. This is a one-shot, irreversible
+    /// move over someone's settings, shelf, timers, to-dos, notes and lyrics cache, run exactly
+    /// once per upgrade with no second chance, which is why it is worth a seam.
+    static func carryOver(_ pairs: [(old: URL, new: URL, label: String)]) -> [String] {
         let fm = FileManager.default
         var moved: [String] = []
-        for (old, new, label) in [(Legacy.configDirectory, configDirectory, "settings"),
-                                  (Legacy.supportDirectory, supportDirectory, "app data")] {
-            guard fm.fileExists(atPath: old.path), !fm.fileExists(atPath: new.path) else { continue }
+        for pair in pairs {
+            guard fm.fileExists(atPath: pair.old.path), !fm.fileExists(atPath: pair.new.path) else { continue }
             do {
-                try fm.createDirectory(at: new.deletingLastPathComponent(),
+                try fm.createDirectory(at: pair.new.deletingLastPathComponent(),
                                        withIntermediateDirectories: true)
-                try fm.moveItem(at: old, to: new)
-                moved.append(label)
+                try fm.moveItem(at: pair.old, to: pair.new)
+                moved.append(pair.label)
             } catch {
                 // A failed move is not worth refusing to launch over: the app starts fresh and the
                 // old directory is still there to be recovered by hand.
