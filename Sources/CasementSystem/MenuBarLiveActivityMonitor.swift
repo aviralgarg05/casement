@@ -20,6 +20,13 @@ import CasementCore
 public final class MenuBarLiveActivityMonitor {
     public static let agentBundleID = MenuBarAgentScanner.agentBundleID
 
+    /// Every Accessibility call here is a synchronous round trip into MenuBarAgent, and without a
+    /// limit an element keeps the system default of seconds. This was the only AX call site in the
+    /// project with none, so a slow or wedged agent could hold up `attach()` (three notifications
+    /// in a row, during launch) and every later scan. In line with the rest: MenuBarInspector uses
+    /// 0.05 to 0.25, MenuBarAgentScanner 0.2 against this same agent.
+    static let messagingTimeout: Float = 0.25
+
     /// Current Live Activities, left to right.
     public var onChange: (([MirroredLiveActivity]) -> Void)?
     /// Where each of those activities sits in the menu bar, in global Accessibility coordinates.
@@ -187,6 +194,7 @@ public final class MenuBarLiveActivityMonitor {
         }
         guard AXObserverCreate(pid, callback, &obs) == .success, let obs else { return }
         let app = AXUIElementCreateApplication(pid)
+        AXUIElementSetMessagingTimeout(app, Self.messagingTimeout)
         // Structure only: value and title changes on the whole app arrive every second from
         // other apps' status items and the clock, so those are watched per element instead.
         for name in [kAXCreatedNotification, kAXUIElementDestroyedNotification, kAXLayoutChangedNotification] {
@@ -209,6 +217,7 @@ public final class MenuBarLiveActivityMonitor {
                                                 kAXUIElementDestroyedNotification, kAXResizedNotification, "AXDescriptionChanged"]
 
     private func watch(_ element: AXUIElement, _ observer: AXObserver) {
+        AXUIElementSetMessagingTimeout(element, Self.messagingTimeout)
         let refcon = Unmanaged.passUnretained(self).toOpaque()
         for name in Self.elementNotifications { AXObserverAddNotification(observer, element, name as CFString, refcon) }
     }

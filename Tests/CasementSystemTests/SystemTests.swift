@@ -388,7 +388,7 @@ func request(_ port: UInt16, _ method: String, _ path: String, token: String? = 
         #expect(waited < 1, "start() waited \(String(format: "%.2f", waited))s for the open to come back")
     }
 
-    @Test func shelfPersistsAcrossLaunches() throws {
+    @MainActor @Test func shelfPersistsAcrossLaunches() async throws {
         let dir = tempDir()
         defer { try? FileManager.default.removeItem(at: dir) }
         let file = dir.appendingPathComponent("note.txt")
@@ -399,9 +399,14 @@ func request(_ port: UInt16, _ method: String, _ path: String, token: String? = 
         #expect(a.shelf.items.count == 1)
         let b = ShelfService(storeURL: store)
         #expect(b.shelf.items.first?.name == "note.txt")
-        // Missing files are pruned on load.
+        // Missing files are pruned on load. The check is off the main thread now, because a
+        // shelf path can be on a share that does not answer and this runs during launch, so the
+        // prune lands a moment after the shelf is decoded rather than inside init.
         try FileManager.default.removeItem(at: file)
-        #expect(ShelfService(storeURL: store).shelf.items.isEmpty)
+        let c = ShelfService(storeURL: store)
+        #expect(c.shelf.items.count == 1, "decoded before the scan has run")
+        for _ in 0..<100 where !c.shelf.items.isEmpty { try await Task.sleep(nanoseconds: 20_000_000) }
+        #expect(c.shelf.items.isEmpty)
     }
 
     /// Demo content stays in memory: nothing is written to shelf.json, now or later.
@@ -423,6 +428,30 @@ func request(_ port: UInt16, _ method: String, _ path: String, token: String? = 
         #expect(!FileManager.default.fileExists(atPath: store.path))
         shelf.removeAll()
         #expect(!FileManager.default.fileExists(atPath: store.path))
+    }
+
+    /// A shelf file that looks local but whose filesystem does not answer: launch is not held up.
+    /// `aSlowShareNeitherBlocksNorLosesFiles` below never reaches `exists`, because `volume(of:)`
+    /// recognises its /Volumes path and the `||` short-circuits, so this is the case that used to
+    /// block: anything not under /Volumes counts as the startup disk, which includes a cloud
+    /// folder waiting to fetch, an autofs mount, and Desktop or Documents behind a consent prompt.
+    @MainActor @Test func aSlowStartupDiskPathDoesNotHoldUpLaunch() async throws {
+        let dir = tempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let store = dir.appendingPathComponent("shelf.json")
+        var saved = Shelf()
+        // Under /var/folders, so `volume(of:)` returns nil and this is treated as the startup disk.
+        let slow = dir.appendingPathComponent("does-not-answer.pdf").path
+        #expect(Shelf.volume(of: slow) == nil, "fixture must look like the startup disk")
+        saved.add(paths: [slow], now: Date())
+        try JSONEncoder().encode(saved).write(to: store)
+        let started = Date()
+        let shelf = ShelfService(storeURL: store, exists: { _ in Thread.sleep(forTimeInterval: 3); return false }, volumeTimeout: 0.2)
+        let waited = Date().timeIntervalSince(started)
+        // Generous against the 3 s sleep, so a loaded runner cannot fail it while still failing
+        // loudly if the check is back on the main thread.
+        #expect(waited < 1, "init waited \(String(format: "%.2f", waited))s for a path that does not answer")
+        #expect(shelf.shelf.items.count == 1, "decoded and shown before the scan has answered")
     }
 
     /// A share that doesn't answer: launch isn't held up, and its files are dimmed, not dropped.

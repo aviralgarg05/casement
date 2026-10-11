@@ -41,8 +41,31 @@ public final class ShelfService {
         shelf = restored.value ?? Shelf()
         canSave = restored.canSave
         if let moved = restored.setAside { Log.files.error("shelf.json couldn't be read; kept as \(moved.lastPathComponent, privacy: .public)") }
-        resolveBookmarks(onStartupDisk: true)
-        shelf.prune { path in Shelf.volume(of: path) != nil || exists(path) }
+        // Following bookmarks and checking that files are still there both read the filesystem,
+        // and a shelf item can sit anywhere: on a share that does not answer, in a cloud folder
+        // that has to fetch it first, or in Desktop or Documents, which macOS gates behind a
+        // consent prompt. This ran here on the main thread, before NSApplication was running, so
+        // a path that did not come back took the menu bar, the island, the discovery file and the
+        // quit path with it; the volumeTimeout net below could not help, because it is scheduled
+        // on the very queue that was stuck. Only the startup-disk items are looked at here; the
+        // rest are checkVolumes's, and it already works in the background.
+        let startup = shelf.items.filter(Shelf.isOnStartupDisk)
+        if !startup.isEmpty {
+            DispatchQueue.global(qos: .utility).async { [weak self] in
+                // Bookmarks first, then existence against the path the bookmark gave. That is the
+                // order this ran in before, and it matters: a file that moved is followed rather
+                // than pruned for not being where it was.
+                var moved: [(id: String, path: String)] = []
+                var missing: Set<String> = []
+                for item in startup {
+                    let followed = Self.resolved(item)
+                    if let followed { moved.append((item.id, followed)) }
+                    let path = followed ?? item.path
+                    if Shelf.volume(of: path) == nil, !exists(path) { missing.insert(path) }
+                }
+                DispatchQueue.main.async { self?.finishStartupScan(moved: moved, missing: missing) }
+            }
+        }
         checkVolumes()
         // A disk or share coming or going changes what can be opened.
         let ws = NSWorkspace.shared.notificationCenter
@@ -119,6 +142,22 @@ public final class ShelfService {
         }
     }
 
+    /// Applies what the startup scan found. Anything put on the shelf while it ran is left alone:
+    /// a path the scan never saw is not in `missing`, so the test below keeps it.
+    private func finishStartupScan(moved: [(id: String, path: String)], missing: Set<String>) {
+        var changed = false
+        for m in moved {
+            shelf.updatePath(id: m.id, to: m.path)
+            changed = true
+        }
+        if !missing.isEmpty {
+            let before = shelf.items.count
+            shelf.prune { path in Shelf.volume(of: path) != nil || !missing.contains(path) }
+            if shelf.items.count != before { changed = true }
+        }
+        if changed { save() }
+    }
+
     private func finishCheck(_ results: [(id: String, path: String?, outcome: ShelfCheck)], generation: Int) {
         guard generation == checkGeneration else { return }
         answeredGeneration = generation
@@ -151,14 +190,6 @@ public final class ShelfService {
         guard let url = try? URL(resolvingBookmarkData: data, options: [.withoutUI, .withoutMounting], relativeTo: nil,
                                  bookmarkDataIsStale: &stale), url.path != item.path else { return nil }
         return url.path
-    }
-
-    /// Follow bookmarks so moved or renamed files stay on the shelf: at launch, those on the
-    /// startup disk (the rest in `checkVolumes`).
-    private func resolveBookmarks(onStartupDisk: Bool) {
-        for item in shelf.items where Shelf.isOnStartupDisk(item) == onStartupDisk {
-            if let path = Self.resolved(item) { shelf.updatePath(id: item.id, to: path) }
-        }
     }
 
     private func save() {

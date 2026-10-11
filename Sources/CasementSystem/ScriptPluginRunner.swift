@@ -41,6 +41,11 @@ public final class ScriptPluginRunner {
     private var paused = false
     private var observers: [NSObjectProtocol] = []
     private let queue = DispatchQueue(label: "casement.plugins", qos: .utility)
+    /// Set while a watch is wanted, so a descriptor still being opened when `stop()` is called is
+    /// thrown away rather than arriving late and watching a folder nobody asked about.
+    private var wanted = false
+    /// Set while an open is in flight, so a second `start()` cannot queue a second one.
+    private var opening = false
 
     public init(directory: URL) {
         self.directory = directory
@@ -49,9 +54,40 @@ public final class ScriptPluginRunner {
     deinit { stop() }
 
     public func start() {
-        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
-        rescan()
-        watchDirectory()
+        wanted = true
+        // The folder is the person's to choose: Settings offers a plain open panel with nowhere
+        // ruled out, so it can sit in Desktop, Documents, iCloud Drive, or on a share that does
+        // not answer. Making it, listing it and opening it are therefore all calls that can wait,
+        // and none of them may be on the main thread: this runs inside
+        // applicationDidFinishLaunching, where a wait is the whole app, with no menu bar, no
+        // island, no discovery file and nothing listening for quit. Only the descriptor and the
+        // list of scripts come back.
+        if dirWatcher == nil, !opening {
+            opening = true
+            let dir = directory
+            queue.async { [weak self] in
+                try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+                let scripts = Self.discover(in: dir)
+                let fd = open(dir.path, O_EVTONLY)
+                DispatchQueue.main.async {
+                    guard let self else {
+                        if fd >= 0 { close(fd) }
+                        return
+                    }
+                    self.opening = false
+                    guard self.wanted else {
+                        if fd >= 0 { close(fd) }
+                        return
+                    }
+                    self.apply(scripts)
+                    guard self.dirWatcher == nil, fd >= 0 else {
+                        if fd >= 0 { close(fd) }
+                        return
+                    }
+                    self.watch(fd)
+                }
+            }
+        }
         guard observers.isEmpty else { return }
         let dnc = DistributedNotificationCenter.default()
         let wnc = NSWorkspace.shared.notificationCenter
@@ -64,6 +100,7 @@ public final class ScriptPluginRunner {
     }
 
     public func stop() {
+        wanted = false
         for t in timers.values { t.cancel() }
         if paused { timers.values.forEach { $0.resume() } }
         paused = false
@@ -109,8 +146,17 @@ public final class ScriptPluginRunner {
         }.sorted { $0.lastPathComponent < $1.lastPathComponent }
     }
 
+    /// Lists the folder away from the main thread, then applies the result on it. `timers` and
+    /// `paused` are main-queue only, so only the list of scripts crosses between them.
     public func rescan() {
-        let scripts = Self.discover(in: directory)
+        let dir = directory
+        queue.async { [weak self] in
+            let scripts = Self.discover(in: dir)
+            DispatchQueue.main.async { self?.apply(scripts) }
+        }
+    }
+
+    private func apply(_ scripts: [URL]) {
         let paths = Set(scripts.map(\.path))
         for (path, timer) in timers where !paths.contains(path) {
             // Cancelled before it is resumed: resuming a timer whose deadline went by while the
@@ -246,9 +292,7 @@ public final class ScriptPluginRunner {
         }
     }
 
-    private func watchDirectory() {
-        let fd = open(directory.path, O_EVTONLY)
-        guard fd >= 0 else { return }
+    private func watch(_ fd: Int32) {
         let src = DispatchSource.makeFileSystemObjectSource(fileDescriptor: fd, eventMask: [.write, .rename, .delete], queue: .main)
         src.setEventHandler { [weak self] in self?.rescan() }
         src.setCancelHandler { close(fd) }
