@@ -852,7 +852,11 @@ enum HookFixtures {
         let started = Date()
         let r = await router(b).handle(request("/v1/hooks/claude?wait=1", body: HookFixtures.permissionBash))
         #expect(r.status == 204)
-        #expect(Date().timeIntervalSince(started) < 5)
+        // Generously above the 1 s wait: a backend that hangs for ever makes this test hang
+        // rather than overrun, so the bound is only here to catch a wait that comes back far
+        // later than it promised. A loaded CI runner has been measured stretching wall clock
+        // about fourfold, which failed the old 5 s bound on a wait that behaved correctly.
+        #expect(Date().timeIntervalSince(started) < 30)
         #expect(await b.cancelledAsks == 1)
     }
 

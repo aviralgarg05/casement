@@ -301,25 +301,29 @@ func request(_ port: UInt16, _ method: String, _ path: String, token: String? = 
             try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
             return url
         }
-        let ok = ScriptPluginRunner.run(script("ok.1m.sh", "echo \"Hi | color=red\"; echo ---; echo item"), timeout: 5)
+        let ok = ScriptPluginRunner.run(script("ok.1m.sh", "echo \"Hi | color=red\"; echo ---; echo item"), timeout: 30)
         #expect(ok.error == nil)
         #expect(ok.stdout.contains("Hi | color=red"))
-        let fail = ScriptPluginRunner.run(script("fail.sh", "echo boom >&2; exit 3"), timeout: 5)
+        let fail = ScriptPluginRunner.run(script("fail.sh", "echo boom >&2; exit 3"), timeout: 30)
         #expect(fail.error?.hasPrefix("exit 3") == true)
         #expect(fail.error?.contains("boom") == true)
         let started = Date()
-        let slow = ScriptPluginRunner.run(script("slow.sh", "sleep 10"), timeout: 1)
+        // Sleeps far longer than the bound below, so the two outcomes stay far apart: a honoured
+        // timeout returns in about a second, an ignored one would take two minutes. The bound is
+        // generous because a loaded CI runner has been measured stretching wall clock about
+        // fourfold, which is enough to fail a tight bound on work that was never slow.
+        let slow = ScriptPluginRunner.run(script("slow.sh", "sleep 120"), timeout: 1)
         #expect(slow.error?.contains("timed out") == true)
-        #expect(Date().timeIntervalSince(started) < 5)
+        #expect(Date().timeIntervalSince(started) < 30)
         // Scripts get a short list of variables, not Casement's whole environment.
-        let env = ScriptPluginRunner.run(script("env.sh", "env"), timeout: 5, extraEnv: ["CASEMENT_TEST": "1"])
+        let env = ScriptPluginRunner.run(script("env.sh", "env"), timeout: 30, extraEnv: ["CASEMENT_TEST": "1"])
         let keys = Set(env.stdout.split(separator: "\n").compactMap { $0.split(separator: "=", maxSplits: 1).first.map(String.init) })
         let allowed: Set<String> = ["HOME", "USER", "LOGNAME", "TMPDIR", "SHELL", "LANG", "LC_ALL", "LC_CTYPE", "PATH",
                                     "CASEMENT", "XBARDarkMode", "SWIFTBAR", "CASEMENT_TEST", "PWD", "SHLVL", "_", "OLDPWD", "__CF_USER_TEXT_ENCODING"]
         #expect(keys.isSubset(of: allowed), "\(keys.subtracting(allowed))")
         #expect(keys.contains("CASEMENT_TEST") && keys.contains("PATH"))
         // Big output doesn't deadlock on a full pipe.
-        let big = ScriptPluginRunner.run(script("big.sh", "yes x | head -c 300000; yes y | head -c 300000 >&2"), timeout: 5)
+        let big = ScriptPluginRunner.run(script("big.sh", "yes x | head -c 300000; yes y | head -c 300000 >&2"), timeout: 30)
         #expect(big.stdout.count == 300_000)
         // Only executables are discovered.
         try "not executable".write(to: dir.appendingPathComponent("readme.txt"), atomically: true, encoding: .utf8)
@@ -365,7 +369,7 @@ func request(_ port: UInt16, _ method: String, _ path: String, token: String? = 
         let fifo = dir.appendingPathComponent("stands-in-for-downloads")
         #expect(mkfifo(fifo.path, 0o600) == 0)
         let released = DispatchSemaphore(value: 0)
-        DispatchQueue.global().asyncAfter(deadline: .now() + 2) {
+        DispatchQueue.global().asyncAfter(deadline: .now() + 4) {
             // Non-blocking, so this lets a waiting `open` go without ever waiting itself.
             let far = open(fifo.path, O_WRONLY | O_NONBLOCK)
             if far >= 0 { close(far) }
@@ -378,7 +382,10 @@ func request(_ port: UInt16, _ method: String, _ path: String, token: String? = 
         watcher.stop()
         released.wait()
         try? FileManager.default.removeItem(at: dir)
-        #expect(waited < 0.5, "start() waited \(String(format: "%.2f", waited))s for the open to come back")
+        // A quarter of the delay above, so a watcher that waits for its own open fails by a wide
+        // margin, while a watcher that does not has room to spare on a runner whose wall clock is
+        // stretched: this test passed CI in 7.6 s against 2.1 s locally, so the slack is real.
+        #expect(waited < 1, "start() waited \(String(format: "%.2f", waited))s for the open to come back")
     }
 
     @Test func shelfPersistsAcrossLaunches() throws {
@@ -448,13 +455,16 @@ func request(_ port: UInt16, _ method: String, _ path: String, token: String? = 
         _ = AudioMonitor.readOutput()
     }
 
-    @Test func helperIsLocatableFromTheBuildTree() {
-        // In development the bridge finds build/helpers next to the package.
-        if FileManager.default.fileExists(atPath: "build/helpers/CasementMediaRemote.dylib") {
-            setenv("CASEMENT_HELPERS_DIR", FileManager.default.currentDirectoryPath + "/build/helpers", 1)
-            #expect(SystemNowPlayingBridge.helperPaths() != nil)
-            unsetenv("CASEMENT_HELPERS_DIR")
-        }
+    /// In development the bridge finds build/helpers next to the package. The helpers only exist
+    /// after `make app`, so the condition is a trait rather than an `if`: a skip is then reported
+    /// as a skip instead of counting as a passing test that checked nothing, which is how a
+    /// regression here could have reached a release unnoticed. Nothing is set in the environment,
+    /// because this suite is not serialised and a process-wide variable reaches every other test
+    /// running beside it.
+    @Test(.enabled(if: FileManager.default.fileExists(atPath: "build/helpers/CasementMediaRemote.dylib")))
+    func helperIsLocatableFromTheBuildTree() {
+        let dir = URL(fileURLWithPath: FileManager.default.currentDirectoryPath + "/build/helpers")
+        #expect(SystemNowPlayingBridge.helperPaths(extraDirectory: dir) != nil)
     }
 }
 

@@ -36,7 +36,12 @@ import Testing
         for piece in pieces.dropFirst() where indent + piece.count > columns {
             #expect(!piece.contains(" "), "over-wide piece that could have been split: \(piece)")
         }
-        #expect(!pieces.contains { $0.hasPrefix("/") && $0 != pieces.first && !$0.hasPrefix("/Applications") })
+        // And the path itself is never broken at a slash: it survives whole inside one piece.
+        // Stated this way rather than as "no piece begins with a slash", which held vacuously
+        // because a piece always begins with whatever followed the space the wrapper broke at,
+        // and here that is a quote, a colon or a letter, never a slash.
+        let path = "/Applications/Casement.app/Contents/MacOS/casementctl"
+        #expect(pieces.filter { $0.contains(path) }.count == 1, "\(pieces)")
         #expect(CodeWrap.copied(shown) == line)
     }
 

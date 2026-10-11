@@ -43,8 +43,12 @@ public final class SystemNowPlayingBridge {
     /// Release builds only ever load the copy inside their own bundle: the helper runs with
     /// Casement's privacy permissions, so it must not come from an environment variable or a path
     /// relative to wherever the binary happens to be.
-    public static func helperPaths() -> (script: URL, library: URL)? {
+    /// `extraDirectory` is looked in first. It exists so a test can point at a known layout
+    /// without setting a process-wide environment variable, which leaks into whatever else is
+    /// running beside it under the parallel test runner.
+    public static func helperPaths(extraDirectory: URL? = nil) -> (script: URL, library: URL)? {
         var dirs: [URL] = []
+        if let extraDirectory { dirs.append(extraDirectory) }
         if let res = Bundle.main.resourceURL, Bundle.main.bundleIdentifier != nil { dirs.append(res) }
         #if DEBUG
         if let env = ProcessInfo.processInfo.environment["CASEMENT_HELPERS_DIR"] { dirs.insert(URL(fileURLWithPath: env), at: 0) }
