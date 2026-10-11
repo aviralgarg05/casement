@@ -39,6 +39,13 @@
     <!-- Ollama listens on plain HTTP at 127.0.0.1:11434; nothing else Casement asks for uses HTTP. -->
     <key>NSAppTransportSecurity</key>
     <dict><key>NSAllowsLocalNetworking</key><true/></dict>
+    <!-- The iPhone bridge is the one thing that listens beyond loopback, and it is off until it is
+         switched on (lanBridgeEnabled defaults to false). It binds every interface and advertises
+         itself as _casement._tcp so Shortcuts on the phone can find the Mac by name. -->
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>Casement listens on your local network so Shortcuts on your iPhone can put something in the notch. This is off until you turn on the iPhone bridge in Settings, and nothing is sent outside your network.</string>
+    <key>NSBonjourServices</key>
+    <array><string>_casement._tcp</string></array>
     <key>NSCameraUsageDescription</key>
     <string>Casement shows your camera on the Mirror page, for a quick look before a call. The camera is on only while that page is open, and nothing is recorded or sent anywhere.</string>
     <key>NSAppleEventsUsageDescription</key>
