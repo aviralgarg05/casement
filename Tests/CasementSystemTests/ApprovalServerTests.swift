@@ -121,7 +121,9 @@ private let permission = #"""
         send(fd, "POST /v1/hooks/claude?wait=10 HTTP/1.1\r\nHost: 127.0.0.1\r\n")
         let started = Date()
         #expect(readAll(fd).isEmpty)
-        #expect(Date().timeIntervalSince(started) < 3)
+        // Dropped at the 0.3 s request timeout; a sender that is never dropped never comes back
+        // at all, so this only has to be well under "for ever" and well over a loaded runner.
+        #expect(Date().timeIntervalSince(started) < 10)
     }
 
     @Test func heldRequestsAreCapped() async throws {

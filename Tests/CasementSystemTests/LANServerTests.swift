@@ -63,13 +63,19 @@ final class RawSocket {
     }
 
     /// Everything the server sends before it closes, or what arrived within `seconds`.
-    func reply(within seconds: Int = 3) -> String {
+    ///
+    /// The wait is generous because it is not the thing being asserted: every caller checks what
+    /// came back, so a reply that never arrives still fails, just later. Three seconds was enough
+    /// locally and not on a CI runner, where wall clock has been measured stretching about
+    /// fourfold and `eachClientGetsTwoConnections` read an empty reply from a server that was
+    /// answering perfectly well.
+    func reply(within seconds: Int = 15) -> String {
         read(within: seconds) { _ in false }
     }
 
     /// The response as soon as all of it has arrived, even if the server keeps the connection
     /// open (as it does while dropping the body of a refused request).
-    func response(within seconds: Int = 3) -> String {
+    func response(within seconds: Int = 15) -> String {
         read(within: seconds) { bytes in
             let data = Data(bytes)
             guard let end = data.range(of: Data("\r\n\r\n".utf8)) else { return false }
@@ -133,7 +139,7 @@ final class RawSocket {
         #expect(s.response().hasPrefix("HTTP/1.1 403"))
         // The rest of the body is read and dropped, and then the connection closes.
         s.transmit(String(repeating: "a", count: 500))
-        #expect(s.closes(within: 2))
+        #expect(s.closes(within: 15))
         #expect(try await request(port, "GET", "/v1/state").0 == 403)
         #expect(try await request(port, "GET", "/v1/activities").0 == 403)
         #expect(try await request(port, "GET", "/v1/health", token: nil).0 == 200)
@@ -224,7 +230,7 @@ final class RawSocket {
         // Loopback keeps only its request timeout.
         let slowLocal = try RawSocket(port: localPort)
         slowLocal.transmit("GET /v1/health HTTP/1.1\r\n")
-        #expect(slow.closes(within: 4))
+        #expect(slow.closes(within: 15))
         let dropped = Date().timeIntervalSince(started)
         #expect(dropped > LocalAPIServer.lanHeaderTimeout - 0.5 && dropped < LocalAPIServer.lanHeaderTimeout + 1.5)
         try await Task.sleep(nanoseconds: 700_000_000)
@@ -315,7 +321,14 @@ func requestHead(_ method: String, _ path: String, token: String?, length: Int) 
             // Thirteen refusals in a row, and URLSession resends a body it couldn't deliver, so
             // the bridge's 30-per-10-seconds would answer 429 part way through and this would
             // look like a lingering bug. The rate limit has its own test; take it out of this one.
-            let (server, port) = try await startServer(lan: lan) { $0.rateLimiter = nil }
+            // A long linger as well, so the bound below is far from both outcomes: closing once
+            // the body is in takes no measurable time, being left to the linger takes all of it.
+            // The default of five seconds left only two seconds for a megabyte upload, five times
+            // over, on a runner that stretches wall clock about fourfold.
+            let (server, port) = try await startServer(lan: lan) {
+                $0.rateLimiter = nil
+                $0.lingerTimeout = 20
+            }
             defer { server.stop() }
             for attempt in 1...5 {
                 let started = Date()
@@ -323,7 +336,7 @@ func requestHead(_ method: String, _ path: String, token: String?, length: Int) 
                 #expect(sent, "lan: \(lan), attempt \(attempt)")
                 #expect(reply.hasPrefix("HTTP/1.1 401"), "lan: \(lan), attempt \(attempt)")
                 // Closed once the body is in, not left to the linger deadline.
-                #expect(Date().timeIntervalSince(started) < 2, "lan: \(lan), attempt \(attempt)")
+                #expect(Date().timeIntervalSince(started) < 8, "lan: \(lan), attempt \(attempt)")
             }
             // URLSession gave up on these with -1001 or -1005 when the body went unread.
             for attempt in 1...8 {
@@ -352,32 +365,45 @@ func requestHead(_ method: String, _ path: String, token: String?, length: Int) 
         let s = try RawSocket(port: port)
         let started = Date()
         s.transmit(requestHead("POST", "/v1/notify", token: wrongToken, length: 1024 * 1024) + "and no more")
-        #expect(s.reply(within: 3).hasPrefix("HTTP/1.1 401"))
-        #expect(Date().timeIntervalSince(started) < 2)
-        // Requests without a body close at once, as before.
-        let get = try RawSocket(port: port)
+        #expect(s.reply(within: 15).hasPrefix("HTTP/1.1 401"))
+        // The linger is half a second, so a correct answer arrives in about that. The bound is
+        // only here to catch one that waits out a socket timeout instead, which is tens of
+        // seconds, so it is generous: a loaded CI runner stretches wall clock about fourfold.
+        #expect(Date().timeIntervalSince(started) < 6)
+
+        // Requests without a body close at once rather than being held for the linger. That is a
+        // comparison against the linger, so the two have to stay far apart: a bound below a half
+        // second separates them by a tenth of a second, which no loaded runner will respect. Give
+        // the wrong behaviour twenty seconds to take, and the bound has room without losing its
+        // meaning.
+        let (patient, patientPort) = try await startServer { $0.lingerTimeout = 20 }
+        defer { patient.stop() }
+        let get = try RawSocket(port: patientPort)
         let getStarted = Date()
         get.transmit("GET /v1/activities HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n")
-        #expect(get.reply(within: 3).hasPrefix("HTTP/1.1 401"))
-        #expect(Date().timeIntervalSince(getStarted) < 0.4)
+        #expect(get.reply(within: 15).hasPrefix("HTTP/1.1 401"))
+        #expect(Date().timeIntervalSince(getStarted) < 5)
     }
 
     /// A head Casement can't parse still gets its answer rather than a reset connection, and a
     /// client that has finished sending doesn't hold its connection slot while nothing comes.
     @Test func aHeadThatDoesNotParseIsAnsweredWithoutLingering() async throws {
         for lan in [false, true] {
-            let (server, port) = try await startServer(lan: lan) { $0.lingerTimeout = 5 }
+            // Twenty, not five, so the bound below has room: a request answered and closed takes
+            // no measurable time, one wrongly held takes the whole linger, and the bound sits far
+            // from both rather than just under the shorter one.
+            let (server, port) = try await startServer(lan: lan) { $0.lingerTimeout = 20 }
             defer { server.stop() }
             // Chunked: Casement needs a length it can check against the body limit, so this is a 411.
             let chunked = try RawSocket(port: port)
             chunked.transmit("POST /v1/notify HTTP/1.1\r\nHost: 127.0.0.1\r\nTransfer-Encoding: chunked\r\n\r\n")
-            #expect(chunked.reply(within: 3).hasPrefix("HTTP/1.1 411"), "lan: \(lan)")
+            #expect(chunked.reply(within: 15).hasPrefix("HTTP/1.1 411"), "lan: \(lan)")
             // Nonsense, sent and done with: answered and closed, not held for the linger.
             let junk = try RawSocket(port: port)
             let started = Date()
             #expect(junk.transmitAll("not-a-request\r\n\r\n"), "lan: \(lan)")
-            #expect(junk.reply(within: 3).hasPrefix("HTTP/1.1 400"), "lan: \(lan)")
-            #expect(Date().timeIntervalSince(started) < 2, "lan: \(lan)")
+            #expect(junk.reply(within: 15).hasPrefix("HTTP/1.1 400"), "lan: \(lan)")
+            #expect(Date().timeIntervalSince(started) < 5, "lan: \(lan)")
         }
     }
 }

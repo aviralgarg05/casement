@@ -266,7 +266,8 @@ func request(_ port: UInt16, _ method: String, _ path: String, token: String? = 
         // Nothing is written and the write end stays open, as a child holding stdout leaves it.
         let started = Date()
         #expect(ScriptPluginRunner.drain(open.fileHandleForReading, until: .now() + 0.3).isEmpty)
-        #expect(Date().timeIntervalSince(started) < 3)
+        // Gives up at its own 0.3 s deadline; without the deadline it would block for ever.
+        #expect(Date().timeIntervalSince(started) < 10)
 
         // What is there is read, and the writer closing ends the read at once rather than at
         // the deadline.
@@ -285,11 +286,15 @@ func request(_ port: UInt16, _ method: String, _ path: String, token: String? = 
         let dir = tempDir()
         defer { try? FileManager.default.removeItem(at: dir) }
         let url = dir.appendingPathComponent("daemon.sh")
-        try "#!/bin/sh\nsleep 5 &\necho started\n".write(to: url, atomically: true, encoding: .utf8)
+        try "#!/bin/sh\nsleep 30 &\necho started\n".write(to: url, atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
         let started = Date()
         #expect(ScriptPluginRunner.run(url, timeout: 1).error?.contains("timed out") == true)
-        #expect(Date().timeIntervalSince(started) < 5)
+        // The child holds the pipe for thirty seconds, so a drain that waits for it lands far
+        // above this bound while the one-second timeout lands far below, even on a runner
+        // stretching wall clock fourfold. The old pair was a one-second timeout against a
+        // five-second bound, which leaves no room at all.
+        #expect(Date().timeIntervalSince(started) < 15)
     }
 
     @Test func scriptRunnerCapturesOutputExitCodesAndTimeouts() throws {
@@ -463,8 +468,11 @@ func request(_ port: UInt16, _ method: String, _ path: String, token: String? = 
         saved.add(paths: ["/Volumes/CasementTestShare/report.pdf"], now: Date())
         try JSONEncoder().encode(saved).write(to: store)
         let started = Date()
-        let shelf = ShelfService(storeURL: store, exists: { _ in Thread.sleep(forTimeInterval: 1); return false }, volumeTimeout: 0.2)
-        #expect(Date().timeIntervalSince(started) < 0.5)
+        // Sleeps far longer than the bound, so the two outcomes stay far apart: init that does
+        // not touch the filesystem returns immediately, one that does takes the whole sleep. One
+        // second against half a second left no room on a loaded runner.
+        let shelf = ShelfService(storeURL: store, exists: { _ in Thread.sleep(forTimeInterval: 5); return false }, volumeTimeout: 0.2)
+        #expect(Date().timeIntervalSince(started) < 2)
         #expect(shelf.shelf.items.count == 1)
         let id = try #require(shelf.shelf.items.first?.id)
         for _ in 0..<50 where !shelf.unavailable.contains(id) { try await Task.sleep(nanoseconds: 20_000_000) }
