@@ -15,6 +15,11 @@ public final class DownloadsWatcher {
     /// back can only arrive on its parent; once it is back, this is let go of again.
     private var parent: DispatchSourceFileSystemObject?
     private var ticker: Timer?
+    /// Set while a watch is wanted, so an `open` still in flight when `stop()` is called is
+    /// thrown away instead of arriving late and watching a folder nobody asked about.
+    private var wanted = false
+    /// Set while an `open` is in flight, so a second `start()` cannot queue a second one.
+    private var opening = false
 
     public init(directory: URL = CasementPaths.home.appendingPathComponent("Downloads")) {
         self.directory = directory
@@ -23,10 +28,48 @@ public final class DownloadsWatcher {
     deinit { stop() }
 
     public func start() {
-        guard source == nil else { return }
-        let fd = open(directory.path, O_EVTONLY)
-        // Nothing at the path: stand by on the folder that holds it until it comes back.
-        guard fd >= 0 else { return watchParent() }
+        wanted = true
+        guard source == nil, !opening else { return }
+        opening = true
+        let path = directory.path
+        let abovePath = directory.deletingLastPathComponent().path
+        let needsAbove = parent == nil
+        // Downloads is one of the folders macOS asks the person about, and until that is answered
+        // the first `open` of it does not return. That is why this is not on the main thread: at
+        // launch, inside `applicationDidFinishLaunching`, a wait there is the whole app, and it
+        // left no menu bar, no discovery file for `casementctl`, and nothing listening for quit.
+        // Only the descriptors come back to the main queue, where the watches are made.
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let fd = open(path, O_EVTONLY)
+            // Nothing at the path, or no permission for it: the folder above is where the event
+            // saying it is back can arrive. Opened here too, for the same reason.
+            let aboveFD = fd < 0 && needsAbove ? open(abovePath, O_EVTONLY) : -1
+            DispatchQueue.main.async {
+                guard let self else {
+                    if fd >= 0 { close(fd) }
+                    if aboveFD >= 0 { close(aboveFD) }
+                    return
+                }
+                self.opening = false
+                guard self.wanted, self.source == nil else {
+                    if fd >= 0 { close(fd) }
+                    if aboveFD >= 0 { close(aboveFD) }
+                    return
+                }
+                if fd >= 0 {
+                    if aboveFD >= 0 { close(aboveFD) }
+                    self.watch(fd)
+                } else {
+                    if aboveFD >= 0 { self.watchParent(aboveFD) }
+                    // A path with no folder at it still gets a scan, so a download that has gone
+                    // is reported rather than left on screen.
+                    self.scan()
+                }
+            }
+        }
+    }
+
+    private func watch(_ fd: Int32) {
         let src = DispatchSource.makeFileSystemObjectSource(fileDescriptor: fd, eventMask: [.write, .rename, .delete], queue: .main)
         src.setEventHandler { [weak self] in
             guard let self else { return }
@@ -45,23 +88,22 @@ public final class DownloadsWatcher {
         scan()
     }
 
-    /// Watch the path again. `start()` ends with a scan of its own; a path with no folder at it
-    /// still gets one, so a download that has gone is reported, and `start()` stands by on the
-    /// parent so the path is picked up again when the folder comes back.
+    /// Watch the path again. `start()` scans either way, so a download that has gone is reported,
+    /// and it stands by on the folder above so the path is picked up again when the folder is back.
     private func rearm() {
         source?.cancel()
         source = nil
         start()
-        if source == nil { scan() }
     }
 
     /// Watch the folder Downloads sits in, so a folder deleted and then restored is followed.
     /// Nothing polls: the restore is a write to the parent, and that is what wakes this. Only
     /// while the folder is away, so an ordinary Mac has no second watch at all.
-    private func watchParent() {
-        guard parent == nil else { return }
-        let fd = open(directory.deletingLastPathComponent().path, O_EVTONLY)
-        guard fd >= 0 else { return }
+    private func watchParent(_ fd: Int32) {
+        guard parent == nil else {
+            close(fd)
+            return
+        }
         let src = DispatchSource.makeFileSystemObjectSource(fileDescriptor: fd, eventMask: [.write], queue: .main)
         src.setEventHandler { [weak self] in
             guard let self, self.source == nil else { return }
@@ -73,6 +115,7 @@ public final class DownloadsWatcher {
     }
 
     public func stop() {
+        wanted = false
         source?.cancel()
         source = nil
         parent?.cancel()

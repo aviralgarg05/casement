@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.1 (11 October 2026)
+
+### The app could freeze at launch with downloads turned on
+
+Casement watches the Downloads folder so it can show a pill while a browser download runs. Downloads is one of the folders macOS gates behind a consent prompt, and until that prompt is answered the first read of it does not come back. That read was on the main thread, during launch, so on a first run the app stopped there: no menu bar icon, no island, nothing for `casementctl` to talk to, and no response to a request to quit. The prompt sat waiting behind an app that looked frozen.
+
+It now happens off the main thread. The app finishes launching whether the prompt is answered, ignored or refused, and the watch starts as soon as it is allowed.
+
+This only reached people who had turned downloads on, which is off by default. Upgrading from Islet carried the setting across, so anyone who had it on there met this on the first launch under the new name.
+
 ## 0.4.0 (10 October 2026)
 
 **This build is not notarised by Apple, so macOS blocks the first launch.** Open it once from System Settings, Privacy and Security, Open Anyway; the readme has the four steps. On macOS 15 and later, Control-clicking the app no longer gets past this check.

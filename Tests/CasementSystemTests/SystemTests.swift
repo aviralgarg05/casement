@@ -352,6 +352,35 @@ func request(_ port: UInt16, _ method: String, _ path: String, token: String? = 
         #expect(DownloadsWatcher.partial(at: dir.appendingPathComponent("done.zip")) == nil)
     }
 
+    /// `start()` must not wait for the folder it watches to open. Downloads is one of the folders
+    /// macOS gates behind a consent prompt, and until that is answered the first `open` of it does
+    /// not come back; that `open` used to be on the main thread inside
+    /// `applicationDidFinishLaunching`, so an unanswered prompt froze the app with no menu bar, no
+    /// discovery file and nothing listening for quit. A FIFO stands in for the prompt, because an
+    /// `open` of one waits the same way until the far end is opened and needs no permission to set
+    /// up. The far end is opened a moment later so a watcher that does wait fails on the clock
+    /// rather than hanging the run.
+    @Test func startDoesNotWaitForTheFolderToOpen() throws {
+        let dir = tempDir()
+        let fifo = dir.appendingPathComponent("stands-in-for-downloads")
+        #expect(mkfifo(fifo.path, 0o600) == 0)
+        let released = DispatchSemaphore(value: 0)
+        DispatchQueue.global().asyncAfter(deadline: .now() + 2) {
+            // Non-blocking, so this lets a waiting `open` go without ever waiting itself.
+            let far = open(fifo.path, O_WRONLY | O_NONBLOCK)
+            if far >= 0 { close(far) }
+            released.signal()
+        }
+        let watcher = DownloadsWatcher(directory: fifo)
+        let began = Date()
+        watcher.start()
+        let waited = Date().timeIntervalSince(began)
+        watcher.stop()
+        released.wait()
+        try? FileManager.default.removeItem(at: dir)
+        #expect(waited < 0.5, "start() waited \(String(format: "%.2f", waited))s for the open to come back")
+    }
+
     @Test func shelfPersistsAcrossLaunches() throws {
         let dir = tempDir()
         defer { try? FileManager.default.removeItem(at: dir) }
