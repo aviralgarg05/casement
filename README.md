@@ -13,7 +13,7 @@
 - **Now Playing** from any app, browsers included, with synced lyrics, a scrubber that seeks and an output picker. Small app icons switch between every player macOS lists.
 - **Meetings, timers and reminders.** A meeting counts down beside the notch and waits with a Join button until you join it.
 - **A shelf, clipboard history and download progress.** Drop files on the notch, AirDrop one in a click, find that link you copied an hour ago.
-- **Twelve tools, each off until you want it:** to-dos, a note, a converter, emoji, the weather, a camera mirror, a teleprompter, stocks, sales and more. → [Tools](docs/TOOLS.md)
+- **Eleven tools, each off until you want it:** to-dos, a note, a converter, emoji, the weather, a camera mirror, a teleprompter, stocks, sales and more. → [Tools](docs/TOOLS.md)
 - **Ask** Apple Intelligence, Claude, ChatGPT or your command-line agent a quick question. → [AI](docs/AI.md)
 - **Your own activities** from a script, the command line, an HTTP API, the `casement://` scheme or iPhone Shortcuts. → [API](docs/API.md)
 
@@ -37,7 +37,7 @@ Casement is free and needs macOS 14 or later. Mirroring your iPhone's Live Activ
 3. To use `casementctl` from Terminal, link it onto your `PATH`:
 
    ```bash
-   ln -sf /Applications/Casement.app/Contents/MacOS/casementctl /opt/homebrew/bin/casementctl
+   ln -sf /Applications/Casement.app/Contents/MacOS/casementctl "$(brew --prefix 2>/dev/null || echo /usr/local)/bin/casementctl"
    ```
 
 The Releases page of this repository is the only official download. Each release is built from this repository's source at its tag. From 0.2.0 on, the release notes give the zip's SHA-256 (it's also attached as a `.sha256` file), which you can check with `shasum -a 256` on the downloaded zip.
@@ -67,7 +67,7 @@ To keep it, copy it to Applications and put the command-line tool on your `PATH`
 
 ```bash
 make install
-ln -sf /Applications/Casement.app/Contents/MacOS/casementctl /opt/homebrew/bin/casementctl
+ln -sf /Applications/Casement.app/Contents/MacOS/casementctl "$(brew --prefix 2>/dev/null || echo /usr/local)/bin/casementctl"
 ```
 
 A build you make yourself opens without the steps above.
@@ -117,7 +117,7 @@ make settings-snapshots  # renders every Settings page, light and dark
 make demo        # runs with sample content
 ```
 
-CPU figures for each release are in the [changelog](CHANGELOG.md).
+CPU figures are in the [changelog](CHANGELOG.md) for the releases where the numbers moved.
 
 The code is split into `CasementCore` (pure, tested logic), `CasementSystem` (macOS adapters), `Casement` (the app) and `casementctl` (the CLI and MCP server). See [Architecture](docs/ARCHITECTURE.md) and [Research](docs/RESEARCH.md).
 

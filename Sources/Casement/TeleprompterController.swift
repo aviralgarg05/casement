@@ -144,7 +144,7 @@ final class MirrorModel {
     /// Watched only while the page shows.
     @ObservationIgnored private let lockMonitor = UnlockMonitor()
     @ObservationIgnored private var sleepObservers: [NSObjectProtocol] = []
-    /// Made the first time the page shows, so an Casement that never opens it never loads the camera.
+    /// Made the first time the page shows, so a Casement that never opens it never loads the camera.
     @ObservationIgnored private var made: CameraMirror?
 
     var session: AVCaptureSession { camera.session }

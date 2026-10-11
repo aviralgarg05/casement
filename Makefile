@@ -45,7 +45,7 @@ check: test e2e perf  ## Everything
 
 install: app      ## Copy to /Applications and link the CLI (asks nothing; review first)
 	rm -rf /Applications/Casement.app && cp -R build/Casement.app /Applications/
-	@echo "CLI: ln -sf /Applications/Casement.app/Contents/MacOS/casementctl /opt/homebrew/bin/casementctl"
+	@echo "CLI: ln -sf /Applications/Casement.app/Contents/MacOS/casementctl "$(brew --prefix 2>/dev/null || echo /usr/local)/bin/casementctl""
 
 release:          ## Zip, checksum and notes for the newest CHANGELOG version (PUBLISH=1 creates the GitHub release)
 	scripts/release.sh $(if $(PUBLISH),--publish,)

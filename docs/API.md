@@ -314,7 +314,7 @@ The bridge has its own token, shown in Settings → Advanced → iPhone bridge w
 The CLI ships inside the app: `Casement.app/Contents/MacOS/casementctl`. Put it on your `PATH`:
 
 ```bash
-ln -sf /Applications/Casement.app/Contents/MacOS/casementctl /opt/homebrew/bin/casementctl
+ln -sf /Applications/Casement.app/Contents/MacOS/casementctl "$(brew --prefix 2>/dev/null || echo /usr/local)/bin/casementctl"
 ```
 
 ```text
@@ -403,7 +403,7 @@ Siri can open these links through a shortcut: see [Siri and Shortcuts](SHORTCUTS
 Put executables in `~/.config/casement/plugins/`. The file name sets the refresh interval, xbar-style: `cpu.10s.sh`, `prs.5m.py`, `weather.1h.rb` (default 5 minutes; never more often than once a second). Output can be:
 
 1. **xbar/SwiftBar text**: existing plugins work unchanged. The first line is the header, then `---`, then items. Supported parameters: `href=`, `shell=`/`bash=` with `param1=`…, `color=`, `sfimage=`, `refresh=true`, `disabled=true`, and submenus (`--`).
-2. **An Casement activity as JSON**: `{"id":"cpu","title":"CPU 42%","progress":0.42}` becomes a live activity.
+2. **A Casement activity as JSON**: `{"id":"cpu","title":"CPU 42%","progress":0.42}` becomes a live activity.
 
 Scripts get `CASEMENT=1`, `SWIFTBAR=1`, `XBARDarkMode=true` and Homebrew on `PATH`, and are killed after 15 s.
 

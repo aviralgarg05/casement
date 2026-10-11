@@ -51,7 +51,7 @@ Casement now covers the Live Activities macOS draws in the menu bar, so each one
 - A pill whose words merely hold an app’s name no longer takes that app’s name, symbol and layout: “Man United 2 - 1 Arsenal” was titled with the whole phrase and drawn as a flight. An address with a comma in it is no longer split into a title and a subtitle either.
 - A countdown the island animates stops as soon as Casement can no longer tell which way the time is going, instead of counting down to a moment that is no longer true.
 - A Live Activity that shows its countdown with the unit beside it, such as “13:01 min”, counts down in the island, instead of showing a number that moved only when the menu bar did. Casement reads the time wherever it sits in the pill’s words rather than only at the end.
-- A link such as `casement://activity?title=x&steps=1e300` no longer ends Casement. Every number in an `casement://` link is now checked before it is used, and one too big for Casement to hold is refused like any other bad value.
+- A link such as `casement://activity?title=x&steps=1e300` no longer ends Casement. Every number in a `casement://` link is now checked before it is used, and one too big for Casement to hold is refused like any other bad value.
 - A pill whose value reads like a clock no longer ends Casement when the figure in front of the colon is absurdly large, whether it came from a link, a script or your iPhone.
 - A song whose lyrics file holds an absurd timestamp no longer ends Casement. Anyone can upload lyrics to LRCLIB, so one bad line used to crash Casement for everyone who played that song.
 - Sales figures, model sizes, request counts and a temperature reading from a service that sends something absurd no longer end Casement.
@@ -70,7 +70,7 @@ Casement now covers the Live Activities macOS draws in the menu bar, so each one
 - A busy Exchange or Google calendar no longer makes the island hitch while it is read.
 - The iPhone bridge can no longer fill the island with pills that never go: each one lasts at most an hour unless it is sent again.
 - Download pills keep working after the Downloads folder is replaced or restored from the Trash.
-- An `casement://ask` link opened with no island on any display no longer leaves the island pinned shut.
+- A `casement://ask` link opened with no island on any display no longer leaves the island pinned shut.
 - A chunked upload to the local API gets its `411` with an explanation instead of a reset connection.
 - Spotify cover art is fetched the way every other request Casement sends is: nothing kept between songs, nothing written to disk.
 - A title, subtitle, trailing value or source sent by a script, a link or your iPhone is cut to one line of what the island can draw, instead of stretching the row.
@@ -120,7 +120,7 @@ Casement now covers the Live Activities macOS draws in the menu bar, so each one
 - A Live Activity you muted is no longer covered for a moment after Casement starts, which showed as a black rectangle in the menu bar on an otherwise quiet Mac.
 - A timer that rings while there is no island anywhere just rings, instead of pinning a display that draws nothing.
 - A coding agent’s request that arrives in the first second after waking waits for the island rather than going straight back to the terminal.
-- An `casement://ask` link or ⌃⌥A with no island on screen keeps the question for the next time the island opens, instead of dropping it.
+- A `casement://ask` link or ⌃⌥A with no island on screen keeps the question for the next time the island opens, instead of dropping it.
 - A Downloads folder sent to the Trash and put back is followed again, rather than leaving download pills off for the rest of the session.
 - A script widget removed while the screen is locked no longer leaves a row behind that nothing clears, and a widget whose script keeps working after closing its own output no longer stops every other widget.
 - The Shortcuts page says it couldn’t read your shortcuts rather than showing an empty list as though you had none.

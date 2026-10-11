@@ -163,7 +163,7 @@ private struct AgentConnectionRow: View {
     let agent: CodingAgent
     let connection: AgentConnection?
     let note: String?
-    /// Its hooks call an casementctl that isn't there any more.
+    /// Its hooks call a casementctl that isn't there any more.
     let moved: Bool
     /// Casement isn't accepting requests from apps, so even a connected agent can't reach it.
     let unreachable: Bool

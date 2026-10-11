@@ -8,7 +8,7 @@ import SwiftUI
 enum AppActions {
     static var openSettingsHandler: ((SettingsPage?, String?) -> Void)?
 
-    /// Whether an `casementctl` is there to run. Settings snapshots, which show the installed
+    /// Whether a `casementctl` is there to run. Settings snapshots, which show the installed
     /// location without an installed app, say yes.
     static var isExecutable: @Sendable (String) -> Bool = { FileManager.default.isExecutableFile(atPath: $0) }
 
@@ -193,7 +193,7 @@ enum AppActions {
         FileManager.default.displayName(atPath: url.deletingLastPathComponent().path)
     }
 
-    /// Handle an `casement://` URL.
+    /// Handle a `casement://` URL.
     static func handle(url: URL, model: AppModel) {
         do {
             switch try URLCommand.parse(url) {

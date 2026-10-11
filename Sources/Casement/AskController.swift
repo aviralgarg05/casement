@@ -20,7 +20,7 @@ final class AskController {
     }
 
     var draft = ""
-    /// An casement://ask link's provider, until the island closes or the conversation starts over;
+    /// A casement://ask link's provider, until the island closes or the conversation starts over;
     /// nil follows Settings. The chip changes the setting itself (`AppActions.chooseAskProvider`).
     var sessionProvider: AskProviderKind?
     private(set) var phase: Phase = .idle

@@ -5,7 +5,7 @@ import CasementCore
 /// parsers in CasementCore.
 ///
 /// An ephemeral `URLSession` with no cache, cookies or credential store, made on first use, so
-/// an Casement with every tool off never makes one. Each request must be HTTPS to the hosts its
+/// a Casement with every tool off never makes one. Each request must be HTTPS to the hosts its
 /// tool names (or HTTP to Ollama on 127.0.0.1), and redirects are refused, so a key header
 /// can't follow a redirect anywhere else. Nothing is logged.
 /// Refuses every redirect, for a session that isn't its own delegate. The reply to the request

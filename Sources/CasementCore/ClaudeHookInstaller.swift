@@ -3,7 +3,7 @@ import Foundation
 /// Merges Casement's hooks into Claude Code's `settings.json`. Pure: takes the file's bytes and
 /// returns the new bytes plus a list of changes to show before writing.
 ///
-/// Idempotent. The user's own hooks and every other setting are kept. An Casement hook that is
+/// Idempotent. The user's own hooks and every other setting are kept. A Casement hook that is
 /// already there is left alone, except that Casement's approval hooks follow the wait setting.
 public enum ClaudeHookInstaller {
     public struct Entry: Equatable, Sendable {
@@ -125,7 +125,7 @@ public enum ClaudeHookInstaller {
         return Plan(merged: merged + Data("\n".utf8), changes: changes, wasConnected: found)
     }
 
-    /// Whether Casement's existing hook needs rewriting: it calls an `casementctl` at another path
+    /// Whether Casement's existing hook needs rewriting: it calls a `casementctl` at another path
     /// (Casement.app moved, or was updated in a new place), or an approval hook's wait changed.
     /// A hook that calls `casementctl` by name, from PATH as the examples in `integrations/` do, is
     /// the user's choice and isn't moved anywhere; nor is anything compared when this build
@@ -190,7 +190,7 @@ public enum ClaudeHookInstaller {
         return parts.exe
     }
 
-    /// Casement's hook commands for `agent` that call an `casementctl` that isn't there any more
+    /// Casement's hook commands for `agent` that call a `casementctl` that isn't there any more
     /// (Casement.app moved or was deleted). Names on `PATH` (no slash) aren't checked.
     public static func missingExecutables(in commands: [String], agent: String, exists: (String) -> Bool) -> [String] {
         commands.compactMap { command in
@@ -229,7 +229,7 @@ public enum ClaudeHookInstaller {
         return nil
     }
 
-    /// Arguments of an `casementctl` command line, or nil for any other command.
+    /// Arguments of a `casementctl` command line, or nil for any other command.
     static func casementArguments(_ command: String) -> [String]? {
         guard let parts = split(command), (parts.exe as NSString).lastPathComponent == "casementctl" else { return nil }
         return parts.rest.split(separator: " ").map(String.init)

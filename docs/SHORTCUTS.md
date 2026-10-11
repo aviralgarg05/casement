@@ -115,7 +115,7 @@ To use Casement's own Ask box instead, skip **Use Model**, URL-encode *Provided 
 
 ## Using `casementctl` instead of links
 
-**Run Shell Script** reports errors back to Shortcuts, which an `casement://` link can't do: if Casement can't read the length, or isn't running, Shortcuts shows the reason.
+**Run Shell Script** reports errors back to Shortcuts, which a `casement://` link can't do: if Casement can't read the length, or isn't running, Shortcuts shows the reason.
 
 1. New shortcut, named **Notch Timer**.
 2. Add **Ask for Input** as above.

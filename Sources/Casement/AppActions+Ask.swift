@@ -17,7 +17,7 @@ extension AppActions {
     }
 
     /// The island's "Ask with" chip. It changes the setting itself (Settings → Ask & AI → Answer
-    /// with), saved and applied like any other, and drops a provider an casement://ask link picked.
+    /// with), saved and applied like any other, and drops a provider a casement://ask link picked.
     static func chooseAskProvider(_ model: AppModel, _ kind: AskProviderKind) {
         model.ask.sessionProvider = nil
         guard model.settings.ask.provider != kind else { return }

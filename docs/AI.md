@@ -15,7 +15,7 @@ Open it in any of three ways:
 
 - Press the Ask shortcut, **⌃⌥A** by default, from any app (see [Keyboard shortcut](#keyboard-shortcut)).
 - Open the island and click **Ask**, the disc on the right of the page switcher under it.
-- Open an `casement://ask` link (see [below](#casement-ask)).
+- Open a `casement://ask` link (see [below](#casement-ask)).
 
 | Action | How |
 |---|---|

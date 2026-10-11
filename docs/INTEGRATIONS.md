@@ -4,7 +4,7 @@ Casement connects to apps in three ways:
 
 1. **Built in, no setup:** anything playing media (Music, Spotify, browsers, podcasts, video players, via macOS Now Playing), calendar, battery, volume, brightness, audio devices, camera/microphone use, calls, downloads, and notifications from every app (opt-in).
 2. **Push from anything:** the `casementctl` CLI, the local HTTP API, the `casement://` URL scheme and the iPhone bridge. Every app or tool that can run a command, open a URL or make a request can drive the island. The full reference is in [API.md](API.md).
-3. **Script widgets:** any xbar/SwiftBar plugin, or a script that prints an Casement activity as JSON.
+3. **Script widgets:** any xbar/SwiftBar plugin, or a script that prints a Casement activity as JSON.
 
 Ready-made files live in [`integrations/`](../integrations/).
 
@@ -189,8 +189,8 @@ casementctl set upload --state success --subtitle "All done"
 | **Raycast** | Script commands in [`integrations/raycast/`](../integrations/raycast/) (timer, toggle). Any Raycast deeplink can be an activity `url`. |
 | **Alfred** | Workflow → *Open URL* `casement://timer?minutes={query}`, or *Run Script* `casementctl notify "{query}"`. |
 | **Hammerspoon** | [`integrations/hammerspoon/casement.lua`](../integrations/hammerspoon/casement.lua) posts to the API, with a Wi-Fi-change example. |
-| **BetterTouchTool / Keyboard Maestro** | Action "Open URL" with an `casement://` link, or "Execute shell script" with `casementctl`. Good for trackpad gestures (`casement://toggle`) and hotkeys (`casement://media/next`). |
-| **Stream Deck** | "Website" action with an `casement://` URL (background mode), or a "System: Open" action running `casementctl`. |
+| **BetterTouchTool / Keyboard Maestro** | Action "Open URL" with a `casement://` link, or "Execute shell script" with `casementctl`. Good for trackpad gestures (`casement://toggle`) and hotkeys (`casement://media/next`). |
+| **Stream Deck** | "Website" action with a `casement://` URL (background mode), or a "System: Open" action running `casementctl`. |
 | **Home Assistant** | [`integrations/home-assistant/casement.yaml`](../integrations/home-assistant/casement.yaml): a `rest_command` to the LAN bridge, plus a doorbell automation. |
 | **Makefiles, npm scripts, git hooks** | `casementctl run -- <cmd>` or `casementctl notify`. For example, a `post-merge` hook: `casementctl notify "Pulled $(git rev-parse --short HEAD)" --icon sf:arrow.down.circle`. |
 | **CI (GitHub Actions)** | Watch a run from your Mac: `casementctl run --title "CI main" -- gh run watch --exit-status`. |

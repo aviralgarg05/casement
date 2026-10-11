@@ -127,7 +127,7 @@ struct AdvancedSettings: View {
                 Text("Apps and scripts that send a song to the local API show it in the island, as Music and Spotify do.")
             }
             .settingsAnchor("advanced.mediaScripts")
-            CodeBlock(title: "Command-line tool: put casementctl on your PATH", code: "ln -sf '\(cli)' /opt/homebrew/bin/casementctl")
+            CodeBlock(title: "Command-line tool: put casementctl on your PATH", code: "ln -sf '\(cli)' \"$(brew --prefix 2>/dev/null || echo /usr/local)/bin/casementctl\"")
                 .settingsAnchor("advanced.cli")
         } header: {
             Text("Local API")

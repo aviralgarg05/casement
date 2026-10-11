@@ -346,7 +346,7 @@ final class AppModel {
         let firstRun = !FileManager.default.fileExists(atPath: CasementPaths.configFile.path)
         watchSettingsFile()
         if firstRun { showFirstRunHint() }
-        // Once per launch: hooks left pointing at an casementctl that moved fail silently.
+        // Once per launch: hooks left pointing at a casementctl that moved fail silently.
         checkAgentHooks()
         // Back from System Settings, calendar access may have changed; it starts at once.
         systemObservers.append(NotificationCenter.default.addObserver(
@@ -900,7 +900,7 @@ final class AppModel {
         settingsOrigin = problem == nil ? .file : origin
     }
 
-    /// Agents whose hooks call an `casementctl` that is gone (Casement.app moved or was deleted).
+    /// Agents whose hooks call a `casementctl` that is gone (Casement.app moved or was deleted).
     /// Settings shows a dot on Coding agents; Update there fixes it.
     private(set) var agentsNeedingUpdate: Set<CodingAgent> = []
 
@@ -927,7 +927,7 @@ final class AppModel {
         // would rewrite a hand-edited file in Casement's own form. This comes before the cancel, so
         // an edit still waiting for its save goes ahead even when the island saved it meanwhile.
         guard settings != committedSettings else { return }
-        // A new provider, however it was picked, replaces one an casement://ask link picked.
+        // A new provider, however it was picked, replaces one a casement://ask link picked.
         if settings.ask.provider != committedSettings.ask.provider { ask.sessionProvider = nil }
         Self.pendingSettingsCommit?.cancel()
         let work = DispatchWorkItem { [weak self] in
