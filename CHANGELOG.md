@@ -132,7 +132,7 @@ Casement now covers the Live Activities macOS draws in the menu bar, so each one
 - Agendas are read with their own handle on your calendar, so a busy Exchange or Google account can’t clash with the month view on Today.
 
 ### Performance
-- Casement does far less while music plays and while a coding agent works. Both used to tell Casement the same thing over and over — a player reports its position about once a second, and an agent’s hooks fire a couple of times a second — and each report redrew the whole island although nothing on it had changed. Now a report that says nothing new leaves the island exactly as it is, while a seek, a pause, a new track, a new step or any other real change still shows at once.
+- Casement does far less while music plays and while a coding agent works. Both used to tell Casement the same thing over and over (a player reports its position about once a second, and an agent’s hooks fire a couple of times a second), and each report redrew the whole island although nothing on it had changed. Now a report that says nothing new leaves the island exactly as it is, while a seek, a pause, a new track, a new step or any other real change still shows at once.
 - The island works out the order of what it shows once per change instead of once per thing that asks, and its right-click menu is built when you right-click rather than on every update.
 - A coding agent’s hooks are quicker to take in: the patterns that hide secrets and read a command are prepared once instead of for every event.
 - Full screen detection skips its Accessibility checks when the windows haven’t moved, and reading the menu bar no longer goes through every running app each time.
