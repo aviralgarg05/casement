@@ -227,7 +227,7 @@ public final class FullscreenDetector {
     static let axTimeout: Float = 0.1
 
     /// Whether the menu bar hides itself everywhere (System Settings > Control Centre).
-    static var menuBarAutoHides: Bool { UserDefaults.standard.bool(forKey: "_HIHideMenuBar") }
+    public static var menuBarAutoHides: Bool { UserDefaults.standard.bool(forKey: "_HIHideMenuBar") }
 
     /// Accessibility's word on whether `pid`'s window at `bounds` is in full screen, or nil
     /// without Accessibility or when the window can't be found. Asked only about a window that

@@ -135,8 +135,20 @@ public enum NotchGeometry {
 
     /// Frame (global AppKit coordinates) of the transparent host window. The window is
     /// sized for the largest state so SwiftUI can animate inside it without resizing the window.
-    public static func windowFrame(for screen: ScreenDescriptor, metrics: IslandMetrics, shadowPadding: CGFloat = 24) -> CGRect {
-        let width = max(metrics.expanded.width, metrics.compact.width) + shadowPadding * 2
+    ///
+    /// `maxBubbles` is the most bubbles that can sit on one side, which is "Show up to" minus the
+    /// island itself, so at most two. The worst case is used whatever the setting, because a
+    /// transparent panel costs nothing to widen: hit testing uses the island's own rects and
+    /// everything else on the panel passes clicks through. Without the room the outermost bubble
+    /// is drawn past the window edge and clipped, and the activity it stands for vanishes with no
+    /// "+N" to replace it, which is the opposite of showing less and saying so.
+    public static func windowFrame(for screen: ScreenDescriptor, metrics: IslandMetrics, shadowPadding: CGFloat = 24,
+                                   maxBubbles: Int = 2, bubbleGap: CGFloat = 6) -> CGRect {
+        let diameter = metrics.floats ? metrics.notch.height - 2 * pillInset : metrics.notch.height
+        let span = maxBubbles > 0 ? CGFloat(maxBubbles) * diameter + CGFloat(maxBubbles - 1) * bubbleGap : 0
+        // Bubbles start one gap outside the closed island's body, on both sides.
+        let forBubbles = metrics.compact.width + 2 * (bubbleGap + span)
+        let width = max(metrics.expanded.width, metrics.compact.width, forBubbles) + shadowPadding * 2
         let height = metrics.expanded.height + shadowPadding
         return CGRect(
             x: screen.frame.midX - width / 2,

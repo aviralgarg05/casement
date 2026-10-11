@@ -46,6 +46,35 @@ import Testing
         #expect(m.expanded.height <= 150)
     }
 
+    /// A bubble the layout has decided fits in the menu bar row must also fit inside the panel it
+    /// is drawn in, or it is clipped at the window edge and the activity it stands for disappears
+    /// with no "+N" to replace it. Swept over both sliders, because the pair is what decides it:
+    /// moving the wing slider alone flips the size preset to custom and leaves the open width at
+    /// its default, which is one drag from the defaults.
+    @Test func bubblesStayInsideThePanelAcrossBothSliders() {
+        let mbp = ScreenDescriptor(id: 9, name: "mbp", frame: CGRect(x: 0, y: 0, width: 1512, height: 982),
+                                   safeAreaTop: 32, auxiliaryLeftWidth: 663.5, auxiliaryRightWidth: 663.5,
+                                   menuBarHeight: 33, isBuiltIn: true)
+        let gap: CGFloat = 6
+        var worst: (wing: CGFloat, expanded: CGFloat, over: CGFloat)?
+        for wing in stride(from: CasementSettings.wingWidthRange.lowerBound,
+                           through: CasementSettings.wingWidthRange.upperBound, by: 2) {
+            for expanded in stride(from: CasementSettings.expandedWidthRange.lowerBound,
+                                   through: CasementSettings.expandedWidthRange.upperBound, by: 12) {
+                let m = NotchGeometry.metrics(for: mbp, expandedSize: CGSize(width: expanded, height: 200),
+                                              wingWidth: CGFloat(wing))
+                let frame = NotchGeometry.windowFrame(for: mbp, metrics: m)
+                // Two bubbles is the most one side can hold: "Show up to" is clamped to 1...3.
+                let diameter = m.floats ? m.notch.height - 2 * NotchGeometry.pillInset : m.notch.height
+                let span = 2 * diameter + gap
+                let outerEdge = m.compact.width / 2 + gap + span
+                let over = outerEdge - frame.width / 2
+                if over > 0, over > (worst?.over ?? 0) { worst = (CGFloat(wing), CGFloat(expanded), over) }
+            }
+        }
+        #expect(worst == nil, "outermost bubble is \(worst?.over ?? 0) pt outside the panel at wing \(worst?.wing ?? 0), open width \(worst?.expanded ?? 0)")
+    }
+
     @Test func windowIsTopCenteredOnItsScreen() {
         let m = NotchGeometry.metrics(for: external)
         let f = NotchGeometry.windowFrame(for: external, metrics: m)

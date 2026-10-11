@@ -207,7 +207,17 @@ final class IslandWindowController {
         let preference = model.settings.closedLayout
         let notch = notchRect
         let display = display
-        guard descriptor.menuBarHeight > 0 else {
+        // A menu bar height of zero only means macOS is not taking a row out of visibleFrame,
+        // and that happens for two opposite reasons: a display with no menu bar of its own, and
+        // one whose menu bar hides itself. Going unmeasured turns off both guards at once, the
+        // wing falls back to the whole setting and the bubbles get infinite slack. That is right
+        // for a display with no row and wrong for a hidden one, where the row is still there and
+        // its status items still appear when the pointer reaches the top. The trigger panel sits
+        // above the menu bar and above status items, so unmeasured there does not merely draw over
+        // the revealed bar, it swallows the clicks meant for it, which is the regression 94af2f6
+        // was written to fix. Measure it instead: a measurement that comes back empty leaves the
+        // slack at zero, so the fallback errs towards showing less.
+        guard descriptor.menuBarHeight > 0 || FullscreenDetector.menuBarAutoHides else {
             model.closedPlacements[display] = .unmeasured(preference, wing: preferred, hasMenuBar: false)
             return
         }
