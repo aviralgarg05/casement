@@ -93,6 +93,31 @@ ZIP="build/Casement-$VERSION.zip"
 if [ "$MODE" = --publish ]; then
     git diff --quiet && git diff --cached --quiet || { echo "Commit your changes first." >&2; exit 1; }
     ! git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null || { echo "Tag v$VERSION already exists." >&2; exit 1; }
+    # Do not publish from a commit CI has not passed. 0.4.1 went out from a commit whose CI run
+    # had already failed, because the only check was a green local test run. SKIP_CI_CHECK=1
+    # overrides this for a known flake, and says so on the way past.
+    if [ -z "${SKIP_CI_CHECK:-}" ]; then
+        HEAD_SHA="$(git rev-parse HEAD)"
+        CI_STATE="$(gh run list --commit "$HEAD_SHA" --workflow CI --limit 1 \
+            --json status,conclusion --jq '.[0] | "\(.status)/\(.conclusion)"' 2>/dev/null || echo "")"
+        case "$CI_STATE" in
+            completed/success) echo "▸ CI passed on $(git rev-parse --short HEAD)" ;;
+            ""|null/null)
+                echo "No CI run found for $(git rev-parse --short HEAD)." >&2
+                echo "Push the commit and let CI finish, or re-run with SKIP_CI_CHECK=1." >&2
+                exit 1 ;;
+            completed/*)
+                echo "CI concluded ${CI_STATE#completed/} on $(git rev-parse --short HEAD); not publishing." >&2
+                echo "Fix it, or re-run with SKIP_CI_CHECK=1 if you are certain it is a flake." >&2
+                exit 1 ;;
+            *)
+                echo "CI is still ${CI_STATE%/*} on $(git rev-parse --short HEAD); wait for it." >&2
+                echo "Or re-run with SKIP_CI_CHECK=1." >&2
+                exit 1 ;;
+        esac
+    else
+        echo "::warning:: SKIP_CI_CHECK is set: publishing without a green CI run."
+    fi
 fi
 
 mkdir -p build

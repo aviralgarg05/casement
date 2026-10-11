@@ -54,6 +54,12 @@ jobs:
       #     xcrun notarytool store-credentials casement-notary \
       #       --apple-id "$NOTARY_APPLE_ID" --team-id "$NOTARY_TEAM_ID" --password "$NOTARY_PASSWORD"
 
+      # A tagged release ran no tests before this step existed, so the one commit that most needed
+      # a gate was the one that skipped it: 0.4.1 was published from a commit whose CI run had
+      # already failed, and nothing in this workflow noticed.
+      - name: Test
+        run: make test
+
       - name: Build Casement.app (ad-hoc signed)
         run: make app
 
@@ -69,7 +75,23 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            echo "A release for $GITHUB_REF_NAME already exists; leaving it alone."
+            # scripts/release.sh --publish uploads its own zip and that is what creates the tag
+            # that started this run, so the release existing is the normal path, not an error.
+            # Compare what is published against what this runner built instead of taking it on
+            # trust: exiting 0 here is what made this workflow's green tick meaningless.
+            echo "A release for $GITHUB_REF_NAME already exists; checking the published zip matches this build."
+            gh release download "$GITHUB_REF_NAME" --pattern "Casement-$VERSION.zip" --dir "$RUNNER_TEMP/published"
+            here="$(shasum -a 256 "build/Casement-$VERSION.zip" | cut -d' ' -f1)"
+            there="$(shasum -a 256 "$RUNNER_TEMP/published/Casement-$VERSION.zip" | cut -d' ' -f1)"
+            if [ "$here" = "$there" ]; then
+              echo "✓ published zip is byte-for-byte this build ($here)"
+              exit 0
+            fi
+            echo "::warning::The published zip differs from this runner's build. This is expected when the"
+            echo "::warning::release was built locally (a different machine, SDK or build number), but it"
+            echo "::warning::means this run has not verified what people download."
+            echo "  published: $there"
+            echo "  this run : $here"
             exit 0
           fi
           gh release create "$GITHUB_REF_NAME" --draft --verify-tag \
