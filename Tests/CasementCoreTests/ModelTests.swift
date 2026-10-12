@@ -126,7 +126,30 @@ import Testing
     @Test func fitToTheNotchWorksOnDisplaysWithoutOne() {
         let m = NotchGeometry.metrics(for: external, adjust: CGSize(width: -20, height: 4))
         #expect(m.isSynthetic)
-        #expect(m.notch == CGSize(width: NotchGeometry.syntheticWidth - 20, height: 29))
+        // Width is still the person's to set: a synthetic pill has no hardware edge, so how wide
+        // it is is a matter of taste. Height is not, because the closed island lives in the menu
+        // bar row: this display's row is 25 pt, so +4 is capped there rather than hanging 4 pt
+        // below it and taking the clicks underneath. Shrinking still works; see below.
+        #expect(m.notch == CGSize(width: NotchGeometry.syntheticWidth - 20, height: 25))
+    }
+
+    /// The closed island lives in the menu bar row, so the height adjustment may raise it to the
+    /// row and no further. The setting is global while displays are not, so the realistic way to
+    /// hang an island outside its row was to calibrate a notched MacBook and then attach a second
+    /// display with a shorter row.
+    @Test func fitToTheNotchNeverReachesBelowTheMenuBarRow() {
+        for adjust in stride(from: 1.0, through: 4.0, by: 1.0) {
+            let m = NotchGeometry.metrics(for: external, adjust: CGSize(width: 0, height: adjust))
+            #expect(m.notch.height <= external.menuBarHeight, "+\(adjust) gave \(m.notch.height)")
+        }
+        // Shrinking is untouched: it cannot put anything below the row.
+        #expect(NotchGeometry.metrics(for: external, adjust: CGSize(width: 0, height: -4)).notch.height == 21)
+        // A display whose row macOS does not report (no menu bar of its own, or one that hides
+        // itself) is left alone rather than crushed to the minimum.
+        var hidden = external
+        hidden.menuBarHeight = 0
+        #expect(NotchGeometry.metrics(for: hidden, adjust: CGSize(width: 0, height: 4)).notch.height
+                == NotchGeometry.syntheticHeight + 4)
     }
 
     @Test func fitToTheNotchNeverLeavesTooSmallANotch() {

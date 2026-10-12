@@ -119,7 +119,23 @@ public enum NotchGeometry {
             notch.width = max(min(notch.width, minimumNotch.width), notch.width + adjust.width)
         }
         if adjust.height.isFinite, adjust.height != 0 {
+            let unadjusted = notch.height
             notch.height = max(min(notch.height, minimumNotch.height), notch.height + adjust.height)
+            // "Fit to the notch" lines the island up with the hardware edge, but it may not push
+            // the closed island below the menu bar row: the closed island lives in the row, and
+            // the overhang is not only drawn there. `hitRects` takes the closed island's height
+            // straight from this geometry and `updateTrigger` hands those rects to a panel above
+            // the menu bar, so a taller notch takes clicks meant for what is under it, and
+            // `hoverZone` grows with it as well.
+            //
+            // Only where the row's height is known. Zero means macOS is taking no row out of
+            // visibleFrame, which is a display with no menu bar of its own or one that hides it,
+            // and clamping to zero there would crush a real 32 pt notch to the minimum. Never
+            // shrinks below what the notch was before the adjustment either, so a notch taller
+            // than its own row is left as it is.
+            if screen.menuBarHeight > 0 {
+                notch.height = min(notch.height, max(screen.menuBarHeight, unadjusted))
+            }
         }
 
         let maxWidth = max(notch.width, screen.frame.width - 40)
