@@ -1,5 +1,66 @@
 # Changelog
 
+## 0.4.2 (12 October 2026)
+
+### Three more ways it could freeze at launch
+
+0.4.1 fixed one of these and an audit of the launch path found three more of
+exactly the same shape, each one a read of the filesystem on the thread that
+draws everything, during launch, where a wait is the whole app: no menu bar
+icon, no island, nothing for `casementctl` to talk to, and no response to a
+request to quit.
+
+**Script widgets.** The folder they come from is yours to choose, and Settings
+puts no limits on where. Making it, listing it and watching it all waited, so
+a folder in Desktop or Documents waited for the permission prompt, and one on
+a share that had stopped answering waited for the share. It also happened
+again on every change to that folder, not just at launch.
+
+**The shelf.** Following a bookmark and checking a file is still there both
+read the disk, and that ran before the app had started properly. A shelf item
+on a cloud folder that has to fetch it, or a disk that has gone to sleep, held
+up the whole launch. The two second safety net that was supposed to dim those
+files could not help, because it waited on the same thread.
+
+**Mirrored Live Activities.** Reading the menu bar asks the system for an
+answer, and this was the one place that would wait as long as the system
+liked. An agent that had got stuck held up launch three times over, then again
+on every later look.
+
+### The closed island and the menu bar
+
+**With the menu bar set to hide itself**, the island treated the row as if it
+were not there: full width wings and no limit on bubbles. The row is still
+there when it hides, and its icons still appear when you move the pointer to
+the top, so the island drew over them and took the clicks meant for them. It
+measures the row now.
+
+**A second activity's bubble** could be drawn past the edge of its own window
+and cut in half, with the activity simply vanishing instead of being counted.
+One drag of the wing width slider was enough to cause it.
+
+### Smaller things
+
+- The readme said twelve tools. There are eleven.
+- The command that puts `casementctl` on your `PATH` only worked on Apple
+  silicon, although the download runs on Intel too. It works out where to put
+  it now.
+- macOS asks about the local network for the iPhone bridge, and Casement had
+  no answer to show while it asked. It says what the bridge is for, and that
+  it is off until you turn it on.
+- The rename left "an Casement" in two dozen places in the docs.
+
+### Under the bonnet
+
+The move that carries an Islet install's settings, shelf, timers, notes and
+lyrics cache across had no tests, although everyone upgrading runs it once and
+there is no second chance. It has eight now.
+
+A release can no longer be published from a commit the tests have not passed,
+which is how 0.4.1 went out while its own run was red, and the tagged build
+runs the tests before it builds. The test suite's timing bounds no longer fail
+on a loaded machine while the code under them is working perfectly well.
+
 ## 0.4.1 (11 October 2026)
 
 ### The app could freeze at launch with downloads turned on
