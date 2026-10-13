@@ -101,6 +101,17 @@ jobs:
             echo "  this run : $here"
             exit 0
           fi
-          gh release create "$GITHUB_REF_NAME" --draft --verify-tag \
+          # Reached only when the tag was pushed by hand. The release is left as a draft so that
+          # pushing a tag cannot publish on its own, but a draft is invisible and this run is green
+          # either way: an earlier revision stopped here silently, so the green tick read as
+          # "released" while nobody could download anything. Say where the draft is instead.
+          url="$(gh release create "$GITHUB_REF_NAME" --draft --verify-tag \
             --title "Casement $VERSION" --notes-file "build/release-notes-$VERSION.md" \
-            "build/Casement-$VERSION.zip" "build/Casement-$VERSION.zip.sha256"
+            "build/Casement-$VERSION.zip" "build/Casement-$VERSION.zip.sha256")"
+          echo "::warning::$GITHUB_REF_NAME was created as a DRAFT and is not public. Publish it at $url"
+          {
+            echo "### $GITHUB_REF_NAME is a draft and nobody can download it yet"
+            echo
+            echo "This tag was pushed by hand rather than by \`scripts/release.sh --publish\`, so this"
+            echo "run built the release itself and left it as a draft. Publish it at $url"
+          } >> "$GITHUB_STEP_SUMMARY"
