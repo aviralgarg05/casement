@@ -3,10 +3,10 @@
 Casement is a menu bar agent (no Dock icon) built with SwiftPM from four targets: `CasementCore`, `CasementSystem`, the `Casement` app and the `casementctl` CLI.
 
 ```
-┌──────────────────────────── Casement.app (menu bar agent) ────────────────────────────┐
+┌────────────────────────── Casement.app (menu bar agent) ───────────────────────────┐
 │                                                                                    │
-│  Casement (AppKit + SwiftUI)                                                          │
-│   AppModel (@Observable): state, module switches, CasementBackend for the API         │
+│  Casement (AppKit + SwiftUI)                                                       │
+│   AppModel (@Observable): state, module switches, CasementBackend for the API      │
 │   IslandWindowController ×display: IslandPanel (level 27) + TriggerPanel (26)      │
 │   PointerCoordinator: hover intent, click-through, drag to shelf, swipes           │
 │   TimerController · ApprovalController · AskController · AgentUsageModel           │
@@ -18,7 +18,7 @@ Casement is a menu bar agent (no Dock icon) built with SwiftPM from four targets
 │          Weather · System · Mirror · Teleprompter · Stocks · Sales,                │
 │          once switched on                                                          │
 │                                                                                    │
-│  CasementSystem (adapters to macOS)                                                   │
+│  CasementSystem (adapters to macOS)                                                │
 │   LocalAPIServer (Network.framework) · SystemNowPlayingBridge (perl helper)        │
 │   AppleMusic/Spotify providers · AudioMonitor · AudioOutputs · BatteryMonitor      │
 │   BrightnessMonitor · MediaKeyInterceptor · CalendarService · MicUsageMonitor      │
@@ -30,13 +30,14 @@ Casement is a menu bar agent (no Dock icon) built with SwiftPM from four targets
 │   LocationProvider · FocusSoundPlayer · ToolsService (sales, stocks, AI usage)     │
 │   CameraMirror                                                                     │
 │                                                                                    │
-│  CasementCore (pure Swift, no AppKit, unit-tested)                                    │
+│  CasementCore (pure Swift, no AppKit, unit-tested)                                 │
 │   ActivityCenter · Presenter · MediaArbiter · HoverIntent · NotchGeometry          │
 │   MenuBarLayoutEngine · MenuBarLiveActivities · LiveActivityCatalog                │
 │   ActivityTemplate · TimerEngine · DurationParser · ApprovalQueue · RiskRules      │
 │   Ask providers and stream decoders · SSEParser · AgentUsage · AgentHooks          │
 │   HTTP parser + APIRouter · URLCommand · ScriptPlugins · GestureMap · KeepAwake    │
-│   CallDetector · NotificationParser · DownloadTracker · SmartIcon · CasementSettings  │
+│   CallDetector · NotificationParser · DownloadTracker                              │
+│   SmartIcon · CasementSettings                                                     │
 │   LRC + LRCLIB · ShortcutsCatalog · Open-Meteo + WeatherRefresh · MonthGrid        │
 │   Stopwatch · NoiseGenerator · FocusSoundDirector · PomodoroPreset                 │
 │   SalesAPI · StocksAPI · OpenRouter/Copilot/Ollama usage · TeleprompterPlayback    │

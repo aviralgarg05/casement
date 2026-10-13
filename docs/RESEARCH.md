@@ -7,7 +7,7 @@ left Casement to build. The measurements marked [local] were taken on a 14" MacB
 everything else cites a public source. Current performance figures live in [CHANGELOG.md](../CHANGELOG.md),
 measured per release rather than quoted here.
 
-## 2. What goes wrong in notch apps, and what Casement does
+## 1. What goes wrong in notch apps, and what Casement does
 
 | # | What goes wrong in a notch app | What Casement does |
 |---|---|---|
@@ -20,10 +20,10 @@ measured per release rather than quoted here.
 | 7 | **Sleep/wake instability** | Rebuild on wake; single-instance guard; discovery file owned per process. |
 | 8 | **Trust and permission friction** | Nothing is requested at launch. Every permission is opt-in from Settings, with a sentence on why. Local build is signed with a stable identity so grants survive rebuilds. |
 | 9 | **Janky animations, bloat** | Five motion styles including Minimal and Off, Reduce Motion honoured, every "wow" has an off switch; modules toggle individually. |
-| 10 | **Menu-bar overlap** | Idle island is invisible (the hardware notch is already there). With Accessibility, Casement measures the menu bar and sizes the wings to the free space, down to icon-only wings that stay in the menu bar row; without it, the wings are capped at 36 pt. Only drawn pixels take clicks (section 8). |
+| 10 | **Menu-bar overlap** | Idle island is invisible (the hardware notch is already there). With Accessibility, Casement measures the menu bar and sizes the wings to the free space, down to icon-only wings that stay in the menu bar row; without it, the wings are capped at 36 pt. Only drawn pixels take clicks (section 7). |
 | 11–12 | Shelf and calendar bugs | Bookmarked shelf items survive renames; all-day events never raise alerts. |
 
-## 3. What people ask for most
+## 2. What people ask for most
 
 1. **Notifications in the notch**: the top open request. → *Built:* mirroring from every app (including iPhone notifications macOS forwards), opt-in, experimental, with per-app mute, tint and priority, and optional on-device one-line summaries.
 2. **Now Playing from any app** → *Built* (see #1 above).
@@ -34,7 +34,7 @@ measured per release rather than quoted here.
 7. **AirPods/headphones and output switching** → *Built:* output-device card on connect (no Bluetooth permission needed). *Not built:* per-bud battery (private keys, Bluetooth permission).
 8. Lyrics, more calendar providers, better shelf, external-display brightness, Caffeine, Pomodoro, lock-screen widgets → lyrics, the shelf, keep awake and the Pomodoro are built; the rest are roadmap or script-widget territory.
 
-## 4. The iPhone Dynamic Island, and what carries over
+## 3. The iPhone Dynamic Island, and what carries over
 
 Apple's model has four presentations, reused unchanged for CarPlay, the Watch Smart Stack and the Mac menu bar:
 - **compact:** leading and trailing views around the camera;
@@ -55,11 +55,11 @@ Casement adopts the same contract so it feels familiar and could bridge to a Mac
 | Spring morphing, blur-crossfade, numeric text | One spring family (open 0.47 s at 0.76 damping, close 0.54 s at 0.90), scaled by Animation speed, blur-replace transitions, numeric-text countdowns, arrival bounce |
 | Haptics | Trackpad haptics for direct actions only by default (open, press, drop); optional for important alerts |
 
-**No API exposes the iPhone's Live Activities on the Mac.** ActivityKit is marked unavailable on macOS. macOS 26 and later show them in the menu bar, though, and since 0.2 Casement mirrors whatever MenuBarAgent draws there through Accessibility (section 8). It also covers the iPhone in two other ways:
+**No API exposes the iPhone's Live Activities on the Mac.** ActivityKit is marked unavailable on macOS. macOS 26 and later show them in the menu bar, though, and since 0.2 Casement mirrors whatever MenuBarAgent draws there through Accessibility (section 7). It also covers the iPhone in two other ways:
 - It mirrors the iPhone notifications macOS forwards.
 - It accepts events from **iPhone Shortcuts automations** (alarm, Focus, arrive/leave, battery level) over an opt-in, token-protected local-network bridge.
 
-## 5. Feasibility decisions
+## 4. Feasibility decisions
 
 | Integration | Approach | Permission | Grade |
 |---|---|---|---|
@@ -80,7 +80,7 @@ Casement adopts the same contract so it feels familiar and could bridge to a Mac
 | Fullscreen | Window list: front app spans the display *and* no menu-bar window there (handles below-notch fullscreen) | none | B |
 | Packaging | SwiftPM + script-assembled bundle; works with Command Line Tools only. macOS 27 SDK turns `@State` into a macro whose plugin only ships with Xcode, so Casement uses the property wrapper type directly. | n/a | n/a |
 
-## 6. Connecting to every app
+## 5. Connecting to every app
 
 Four built-in hooks cover most apps with no per-app work:
 - **notification-banner mirroring** (chat, mail, reminders, anything that notifies);
@@ -96,14 +96,14 @@ It also records dead ends:
 - Messages has no incoming-message event.
 - Todoist, Notion, Linear, Figma and GitHub only push webhooks to public HTTPS addresses.
 
-## 7. What's next
+## 6. What's next
 
 - **Signed and notarised releases.** This needs a paid Apple Developer ID. Until then, builds are ad-hoc signed with the hardened runtime.
 - **Siri through App Intents.** The Command Line Tools can compile intents but can't produce the metadata the system reads (Xcode's `appintentsmetadataprocessor`). A CI job with Xcode could. Until then, Siri reaches Casement through Shortcuts.
 - **Per-bud AirPods battery**, **external-display brightness** and a **notification inbox**.
 - **Remote channels** (ntfy/SSE subscriptions) so CI and servers can push without being on the same Mac.
 
-## 8. Second round: parity, Live Activities, AI, glass and the menu bar (30 September 2026)
+## 7. Second round: parity, Live Activities, AI, glass and the menu bar (30 September 2026)
 
 ### The macOS 27 menu bar
 
