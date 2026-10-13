@@ -325,9 +325,21 @@ func requestHead(_ method: String, _ path: String, token: String?, length: Int) 
             // the body is in takes no measurable time, being left to the linger takes all of it.
             // The default of five seconds left only two seconds for a megabyte upload, five times
             // over, on a runner that stretches wall clock about fourfold.
+            // The connection caps come out for the same reason, which the pass that raised the
+            // linger left behind. They count a refused connection until it closes, linger and all,
+            // so taking the linger to twenty seconds also made a refusal hold its slot for up to
+            // twenty seconds. Every client here is 127.0.0.1 and the bridge allows two per
+            // client, so once two refusals are waiting on bodies that stopped arriving, which is
+            // what URLSession leaves behind when it reads the 401 before its upload has
+            // finished, the next one is answered 429 and that reads as a lingering bug. 429 in
+            // place of 401 is how this test failed in run 37124407542. The caps keep their own
+            // tests: connectionsAreCapped, and eachClientGetsTwoConnections, which covers a
+            // lingering refusal holding its slot.
             let (server, port) = try await startServer(lan: lan) {
                 $0.rateLimiter = nil
                 $0.lingerTimeout = 20
+                $0.maxConnectionsPerClient = nil
+                $0.maxConnections = nil
             }
             defer { server.stop() }
             for attempt in 1...5 {
@@ -347,7 +359,18 @@ func requestHead(_ method: String, _ path: String, token: String?, length: Int) 
     }
 
     @Test func refusedRoutesAndOversizedBodiesReachTheClientToo() async throws {
-        let (server, port) = try await startServer(lan: true)
+        // The same settings as the test above, so that a 403 or a 413 arriving as a 429
+        // can only mean the refusal did not reach the client. This test has not been seen
+        // failing, but it is the one place left in the suite where a megabyte upload meets the
+        // five second default linger with only two connection slots: each attempt ends with a
+        // URLSession refusal that can hold a slot for the whole linger, and three attempts run
+        // one after another.
+        let (server, port) = try await startServer(lan: true) {
+            $0.rateLimiter = nil
+            $0.lingerTimeout = 20
+            $0.maxConnectionsPerClient = nil
+            $0.maxConnections = nil
+        }
         defer { server.stop() }
         for attempt in 1...3 {
             let refused = try upload(port, "POST", "/v1/media", token: "tok", body: megabyte)
