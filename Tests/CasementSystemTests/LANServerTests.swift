@@ -187,13 +187,33 @@ final class RawSocket {
         let (server, port) = try await startServer(lan: true)
         defer { server.stop() }
         let health = "GET /v1/health HTTP/1.1\r\nHost: x\r\n\r\n"
+
+        // Does ::1 reach this server at all? Asked here, on an idle server, because asking later
+        // cannot tell "the host has no route" from "the server refused me", which is the very
+        // thing the check below exists to measure. Opening the socket does not answer it either:
+        // connect() to ::1 succeeds on a host whose listener never accepts there, and the
+        // connection is then dropped with nothing written back. The check below read that empty
+        // reply as a failed expectation, which is how this test went red on the runner in run
+        // 38156029171 while passing on every Mac it was tried on.
+        let ipv6Reaches: Bool
+        if let probe = try? RawSocket(port: port, ipv6: true) {
+            probe.transmit(health)
+            ipv6Reaches = probe.reply().hasPrefix("HTTP/1.1 200")
+        } else {
+            ipv6Reaches = false
+        }
+
         var idle = [try RawSocket(port: port), try RawSocket(port: port)]
         try await Task.sleep(nanoseconds: 300_000_000)
         let third = try RawSocket(port: port)
         third.transmit(health)
         #expect(third.reply().hasPrefix("HTTP/1.1 429"))
         // Another client still gets in: over IPv6, ::1 is a different client from 127.0.0.1.
-        if let other = try? RawSocket(port: port, ipv6: true) {
+        // Only where ::1 reaches the server, per the probe above. What this test is really for,
+        // that one client gets two connections and a third is refused, is asserted either side
+        // of this and runs everywhere; this part is about client identity, and a host with no
+        // route to ::1 cannot express it.
+        if ipv6Reaches, let other = try? RawSocket(port: port, ipv6: true) {
             other.transmit(health)
             #expect(other.reply().hasPrefix("HTTP/1.1 200"))
         }
