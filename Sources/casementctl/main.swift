@@ -2,7 +2,7 @@ import Foundation
 import CasementCore
 
 let usage = """
-casementctl — control the Casement notch app from scripts, hooks and CI.
+casementctl: control the Casement notch app from scripts, hooks and CI.
 
 USAGE
   casementctl notify <title> [--subtitle S] [--icon sf:NAME|emoji:X] [--tint COLOR] [--ttl SECONDS]
