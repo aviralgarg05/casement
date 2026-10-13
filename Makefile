@@ -20,8 +20,16 @@ run: app          ## Build and launch Casement.app
 demo:             ## Launch with demo content (debug build)
 	swift build --product Casement && .build/debug/Casement --demo
 
-test:             ## Unit + system tests (swift-testing)
-	swift test $(SWIFT_TEST_FLAGS)
+# The results go to a file as well as the console, because the console is not a reliable record
+# of which test failed. Tests run concurrently and all of them report through one stdout, which
+# is block-buffered when it is a pipe rather than a terminal, and writes can land on top of one
+# another: run 38280213005 lost about a hundred event lines, among them the three that named
+# the one test that failed, and left a line reading "Suite MoveToApplicati" with
+# another test's line spliced into it. The test process writes this file itself, one record per
+# test, so a failure is still named when the log has lost it. swift test creates build/ for it,
+# and git ignores that folder already.
+test:             ## Unit + system tests (swift-testing); results in build/test-results.xml
+	swift test $(SWIFT_TEST_FLAGS) --xunit-output build/test-results.xml
 
 e2e: app          ## End-to-end tests against the real app (isolated config, own port)
 	python3 Tests/E2E/e2e.py

@@ -49,3 +49,14 @@ jobs:
       # Unit and system tests only. The end-to-end suite (make e2e) needs a logged-in GUI session.
       - name: Test
         run: make test
+
+      # Kept whether the tests passed or not, because it is the copy worth having when they did
+      # not: the console log above drops lines when a few hundred tests finish at once, and in
+      # run 38280213005 the three lines naming the failing test were among the ones it dropped.
+      # make test has the test process write this file, which that cannot touch.
+      - name: Keep the test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: build/test-results.xml
