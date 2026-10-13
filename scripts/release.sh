@@ -13,6 +13,9 @@
 # re-zipped, and must be accepted by Gatekeeper. --publish and --no-build also stop while the version's
 # CHANGELOG heading says "unreleased" or its notes hold a placeholder line.
 #
+# The notes are that version's CHANGELOG section, with the zip's SHA-256 appended and, unless the
+# app was notarised, the first-launch Gatekeeper instructions put in front of everything else.
+#
 # The repository's visibility is not changed.
 set -euo pipefail
 
@@ -148,6 +151,7 @@ PARTIAL="$ZIP"
 make_zip "$APP" "$ZIP"
 verify_zip "$ZIP" || { echo "$STOP" >&2; exit 1; }
 
+NOTARISED=""
 if [ -n "${SIGN_IDENTITY:-}" ]; then
     PROFILE="${NOTARY_PROFILE:-casement-notary}"
     echo "▸ notarising with keychain profile $PROFILE"
@@ -158,6 +162,7 @@ if [ -n "${SIGN_IDENTITY:-}" ]; then
     echo "▸ re-zipping the stapled app"
     make_zip "$APP" "$ZIP"
     verify_zip "$ZIP" || { echo "$STOP" >&2; exit 1; }
+    NOTARISED=1
 else
     echo "Not notarised: macOS will ask users to confirm the first launch (see README)"
 fi
@@ -166,6 +171,38 @@ ZIP_OK=1
 (cd build && shasum -a 256 "$(basename "$ZIP")" > "$(basename "$ZIP").sha256")
 SHA="$(cut -d' ' -f1 "$ZIP.sha256")"
 printf '\n---\n\n`Casement-%s.zip` SHA-256: `%s`\n' "$VERSION" "$SHA" >> "$NOTES"
+
+# Every download link lands on the release page, so while the app is unsigned that page is the
+# one place the Gatekeeper explanation has to be, and it has to come first: 0.4.2 went out with
+# nothing about it and left the explanation in the readme, which nobody reads on the way to a
+# download. The dialog's easy way out is Move to Trash, which deletes the app, so the block names
+# it. It is left out once the build is notarised, because macOS then does not block the launch.
+# The same wording is on the 0.4.0 to 0.4.2 pages, added by hand after the fact.
+if [ -z "$NOTARISED" ]; then
+    {
+        cat <<'GATEKEEPER'
+### Opening it the first time
+
+This build isn’t notarised by Apple. Notarisation needs a paid Apple Developer account and this project doesn’t have one, so macOS blocks the first launch of every release.
+
+On macOS 15 and later you’ll get a dialog headed **“Casement” Not Opened**, saying *Apple could not verify “Casement” is free of malware that may harm your Mac or compromise your privacy*. It offers two buttons, **Move to Trash** and **Done**. Earlier versions of macOS word the message differently and still offer Move to Trash.
+
+**Don’t choose Move to Trash.** It deletes the app, and nothing on the dialog says it is the wrong choice. To open Casement:
+
+1. Close the message with **Done**.
+2. Open **System Settings → Privacy & Security** and scroll down to **Security**.
+3. Next to the message that Casement was blocked, click **Open Anyway**.
+4. Confirm with **Open Anyway**, and authenticate with your password or Touch ID when asked.
+
+You only need to do this once. On macOS 15 and later, Control-clicking the app and choosing *Open* no longer gets past this check. The readme has [the same steps](https://github.com/aviralgarg05/casement#opening-it-the-first-time), and the zip’s SHA-256 is at the end of these notes if you want to check the download.
+
+---
+
+GATEKEEPER
+        cat "$NOTES"
+    } > "$WORK/notes.md"
+    mv "$WORK/notes.md" "$NOTES"
+fi
 
 echo "✓ $ZIP"
 echo "  sha256 $SHA ($ZIP.sha256)"
