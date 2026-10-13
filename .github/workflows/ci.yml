@@ -55,12 +55,14 @@ jobs:
       # run 38280213005 the three lines naming the failing test were among the ones it dropped.
       # make test has the test process write this file, which that cannot touch.
       #
-      # Where it lands is listed first because it has already been wrong once. Run 38465752982
-      # passed, wrote nothing the upload could find, and the log gave no way to tell whether the
-      # file was missing, named differently or somewhere else: the upload only says it found
-      # nothing at the path it was given. SwiftPM writes one file per test harness and spells the
-      # swift-testing one with a suffix on some toolchains, so the search is wider than the one
-      # path and prints what it found either way.
+      # Where it lands is listed first because it has already been wrong once, and the answer was
+      # not guessable. Run 38465752982 passed and produced no artifact, because this toolchain
+      # writes build/test-results-swift-testing.xml where the Command Line Tools toolchain on the
+      # author's machine writes build/test-results.xml: SwiftPM names the file per test harness,
+      # and only some toolchains add the suffix. The glob below takes either. The listing stays
+      # because the upload step reports only that it found nothing at the path it was given,
+      # which cannot tell a missing file from one written under another name, and that is what
+      # made the first attempt impossible to diagnose from the log alone.
       - name: Find the test results
         if: always()
         run: |
