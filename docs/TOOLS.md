@@ -1,10 +1,10 @@
 # Tools
 
-Pages you turn on when you want them: to-dos, a quick note, a unit converter, emoji, a camera mirror, a teleprompter, a stocks watchlist and today's sales. Each starts off. Turn one on in Settings → Tools and it appears in the page switcher's More menu (the "…" under the open island). Nothing about them shows in the closed island, and turning one off stops whatever it was doing.
+Eleven pages you turn on when you want them: to-dos, a quick note, a unit converter, emoji, your shortcuts, the weather, a System page, a camera mirror, a teleprompter, a stocks watchlist and today's sales. Each starts off. Turn one on in Settings → Tools and it appears in the page switcher's More menu (the "…" under the open island). Nothing about them shows in the closed island, and turning one off stops whatever it was doing.
 
 Home can also show usage for more AI tools beside Claude Code and Codex: see [Usage limits](INTEGRATIONS.md#usage-limits).
 
-The same Tools page also turns on a Shortcuts page, a Weather page and a System page (CPU and memory, measured only while it is open). Lyrics, the month calendar, the stopwatch and focus sounds are switched on from the Settings page of the feature they belong to (Now Playing, Calendar & Reminders, Timers).
+Lyrics, the month calendar, the stopwatch and focus sounds aren't pages of their own, so they aren't listed here: each is switched on from the Settings page of the feature it belongs to (Now Playing, Calendar & Reminders, Timers).
 
 ## Arranging the pages
 
@@ -58,6 +58,38 @@ Find any emoji by name or by the words people use for it ("lol", "tada", "thumbs
 - The emoji you used lately are kept in `emoji.json` in Casement's support folder (at most 24).
 
 `config.json`: `"emojiEnabled": true, "emojiTypes": false`.
+
+## Shortcuts
+
+Your own shortcuts, searched and run from the notch.
+
+- The list comes from the Shortcuts app on this Mac (`shortcuts list`), read when the page or the Ask box opens and at most every 30 seconds. Type to narrow it, click one to run it.
+- The Ask box suggests matching shortcuts while this is on, so you can run one without opening the page.
+- A shortcut runs on this Mac exactly as it does in the Shortcuts app, with whatever permissions it already has. Casement starts it and nothing else: it doesn't read what the shortcut does or what it returns.
+- For the other direction, a shortcut sending things *to* Casement, see [Siri and Shortcuts](SHORTCUTS.md).
+
+`config.json`: `"shortcutsEnabled": true`.
+
+## Weather
+
+The weather now and for the week ahead.
+
+- Forecasts come from [Open-Meteo](https://open-meteo.com), which needs no account or key.
+- Choose a city in Settings → Tools → Weather, which needs no permission, or **Where I am**, which asks for Location. A position is rounded to two decimal places, about a kilometre, before it is sent; a typed city is sent as its name.
+- Casement asks at most every 30 minutes, and only while the Weather page is open. Nothing is fetched in the background.
+- Temperatures follow your region unless you pick Celsius or Fahrenheit outright. A forecast more than an hour old says when it is from.
+
+`config.json`: `"weatherEnabled": true, "weatherUsesLocation": false, "temperatureUnit": "automatic"`.
+
+## System
+
+CPU and memory for this Mac.
+
+- Sampled every two seconds, and only while the System page is open. Closing the page or the island stops it, so an idle Casement measures nothing.
+- CPU is the share of all cores busy since the last sample; memory is what is in use against what is fitted.
+- It reads the kernel's own counters. No process list, nothing per app, nothing kept and nothing sent.
+
+`config.json`: `"systemStatsEnabled": true`.
 
 ## Camera mirror
 
