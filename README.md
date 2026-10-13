@@ -9,7 +9,7 @@
 ## What it does
 
 - **Coding agents.** Watch Claude Code, Codex and Cursor work, answer their permission requests from the notch, and keep an eye on usage limits. → [Integrations](docs/INTEGRATIONS.md), [MCP](docs/MCP.md)
-- **Your iPhone's Live Activities** — rides, deliveries, scores, flights — in the notch instead of behind it, and 137 apps have their own look. How much shows depends on the app: Casement reads the pill macOS draws through Accessibility, and some apps expose almost nothing there, in which case Casement leaves Apple's own pill alone rather than covering it with less. `swift scripts/live-activity-probe.swift` says which you have. For activities you control, push them from an iPhone Shortcut over the local bridge and they arrive whole. → [Live Activities](docs/LIVE-ACTIVITIES.md)
+- **Your iPhone's Live Activities** (rides, deliveries, scores, flights) in the notch instead of behind it, and 137 apps have their own look. How much shows depends on the app: Casement reads the pill macOS draws through Accessibility, and some apps expose almost nothing there, in which case Casement leaves Apple's own pill alone rather than covering it with less. Once Casement is installed, `casementctl debug menubar` says what it can see of the activity showing now; from a clone of this repository, `swift scripts/live-activity-probe.swift` answers the same question without installing anything. For activities you control, push them from an iPhone Shortcut over the local bridge and they arrive whole. → [Live Activities](docs/LIVE-ACTIVITIES.md)
 - **Now Playing** from any app, browsers included, with synced lyrics, a scrubber that seeks and an output picker. Small app icons switch between every player macOS lists.
 - **Meetings, timers and reminders.** A meeting counts down beside the notch and waits with a Join button until you join it.
 - **A shelf, clipboard history and download progress.** Drop files on the notch, AirDrop one in a click, find that link you copied an hour ago.
@@ -17,7 +17,7 @@
 - **Ask** Apple Intelligence, Claude, ChatGPT or your command-line agent a quick question. → [AI](docs/AI.md)
 - **Your own activities** from a script, the command line, an HTTP API, the `casement://` scheme or iPhone Shortcuts. → [API](docs/API.md)
 
-<img src="docs/images/closed-states.png" width="520" alt="The closed island: music with everything else in bubbles, a ride mirrored from the iPhone, and a coding agent's plan at step 3 of 5">
+<img src="docs/images/closed-states.png" width="520" alt="The closed island twice, music with everything else in bubbles and a ride mirrored from the iPhone, then a coding agent's plan sneaking open at step 3 of 5">
 
 ## How it stays out of the way
 
@@ -30,7 +30,7 @@
 
 ## Download
 
-Casement is free and needs macOS 14 or later. Mirroring your iPhone's Live Activities needs macOS 26 or later, and has only been tested on macOS 27.
+Casement is free and needs macOS 14 or later, and is tested on macOS 27. Mirroring your iPhone's Live Activities needs macOS 26 or later.
 
 1. Download the zip from the [latest release](https://github.com/aviralgarg05/casement/releases/latest) and double-click it in Finder to unzip it.
 2. Move `Casement.app` to Applications. If you open it straight from Downloads, Casement offers to move itself there.
@@ -41,7 +41,7 @@ Casement is free and needs macOS 14 or later. Mirroring your iPhone's Live Activ
    mkdir -p "$BIN" && ln -sf /Applications/Casement.app/Contents/MacOS/casementctl "$BIN/casementctl"
    ```
 
-   With Homebrew that is Homebrew’s own `bin`, which is already on your `PATH`. Without it the link goes in `~/.local/bin`, which macOS doesn’t put on `PATH` for you. Add it once and open a new Terminal window:
+   With Homebrew that is Homebrew's own `bin`, which is already on your `PATH`. Without it the link goes in `~/.local/bin`, which macOS doesn't put on `PATH` for you. Add it once and open a new Terminal window:
 
    ```bash
    echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
@@ -56,9 +56,33 @@ Releases aren't notarised by Apple yet, so macOS blocks the first launch. To all
 1. Open Casement. macOS says it can't verify the app. Close the message, without choosing *Move to Trash*.
 2. Open *System Settings → Privacy & Security* and scroll down to *Security*.
 3. Next to the message that Casement was blocked, click **Open Anyway**.
-4. Click **Open Anyway** again to confirm, and enter your password or use Touch ID.
+4. Confirm with **Open Anyway**, and authenticate with your password or Touch ID when asked.
 
 You only need to do this once. On macOS 15 and later, Control-clicking the app and choosing *Open* no longer gets past this check, so use the steps above.
+
+### Removing it
+
+Casement writes to a few places outside its own bundle, so it is worth doing this in order. Nothing here needs `sudo`.
+
+1. **While it is still installed**, press **Disconnect…** beside each agent in *Settings → Coding agents*, and **Remove…** beside the Claude Code status line. That takes Casement's hooks back out of `~/.claude/settings.json`, `~/.codex/hooks.json`, `~/.codex/config.toml` and `~/.cursor/hooks.json` and puts your own status line back. Claude Code runs the status line from the app bundle, so a status line left behind after the app has gone fails on every turn.
+2. Quit Casement from the capsule in the menu bar.
+3. Delete the app, the `casementctl` link and the two folders it keeps:
+
+   ```bash
+   rm -rf /Applications/Casement.app ~/.config/casement ~/Library/Application\ Support/Casement
+   rm -f "$(brew --prefix 2>/dev/null || echo "$HOME/.local")/bin/casementctl"
+   ```
+
+   `~/.config/casement` is `config.json`; `Application Support/Casement` is the shelf, timers, to-dos, the note, the teleprompter, stickers, the lyrics cache, `api.json` and `lan.json`.
+4. Remove any API, store, OpenRouter or GitHub keys from the login keychain. **Remove** beside each key in Settings does this before you delete the app; afterwards, run each line until it says the item can't be found:
+
+   ```bash
+   security delete-generic-password -s dev.casement.Casement.ai
+   security delete-generic-password -s dev.islet.Islet.ai        # keys saved before the app was renamed
+   ```
+5. In *System Settings → Privacy & Security*, select Casement under Accessibility (*Device Control and Data Access* from macOS 27), Calendars, Reminders, Camera, Location Services or Automation and press **−**. Deleting an app leaves its entries there.
+
+If you added `~/.local/bin` to your `PATH` only for `casementctl`, take that line back out of `~/.zshrc`.
 
 ## Build from source
 
