@@ -37,7 +37,14 @@ Casement is free and needs macOS 14 or later. Mirroring your iPhone's Live Activ
 3. To use `casementctl` from Terminal, link it onto your `PATH`:
 
    ```bash
-   ln -sf /Applications/Casement.app/Contents/MacOS/casementctl "$(brew --prefix 2>/dev/null || echo /usr/local)/bin/casementctl"
+   BIN="$(brew --prefix 2>/dev/null || echo "$HOME/.local")/bin"
+   mkdir -p "$BIN" && ln -sf /Applications/Casement.app/Contents/MacOS/casementctl "$BIN/casementctl"
+   ```
+
+   With Homebrew that is Homebrew’s own `bin`, which is already on your `PATH`. Without it the link goes in `~/.local/bin`, which macOS doesn’t put on `PATH` for you. Add it once and open a new Terminal window:
+
+   ```bash
+   echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
    ```
 
 The Releases page of this repository is the only official download. Each release is built from this repository's source at its tag. From 0.2.0 on, the release notes give the zip's SHA-256 (it's also attached as a `.sha256` file), which you can check with `shasum -a 256` on the downloaded zip.
@@ -66,8 +73,9 @@ make run          # builds and opens it
 To keep it, copy it to Applications and put the command-line tool on your `PATH`:
 
 ```bash
-make install
-ln -sf /Applications/Casement.app/Contents/MacOS/casementctl "$(brew --prefix 2>/dev/null || echo /usr/local)/bin/casementctl"
+make install      # copies it to /Applications, and prints the command below
+BIN="$(brew --prefix 2>/dev/null || echo "$HOME/.local")/bin"
+mkdir -p "$BIN" && ln -sf /Applications/Casement.app/Contents/MacOS/casementctl "$BIN/casementctl"
 ```
 
 A build you make yourself opens without the steps above.

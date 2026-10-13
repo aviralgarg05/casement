@@ -1,4 +1,4 @@
-# Casement — builds with the Xcode Command Line Tools alone.
+# Casement: builds with the Xcode Command Line Tools alone.
 # swift-testing's macros need the plugin path spelled out when the Command Line Tools are the
 # selected toolchain; with Xcode selected they are found without it. Deriving the path from
 # `xcode-select -p` and adding it only when it is there means one command works either way, so
@@ -51,9 +51,16 @@ settings-snapshots: ## Render every Settings page, light and dark, to build/sett
 
 check: test e2e perf  ## Everything
 
+# The printed command has to survive make before it reaches the shell. An earlier revision wrote
+# `$(brew --prefix …)`, which make reads as one of its own variables, named `brew --prefix …`; it
+# is undefined, so make substituted the empty string and the line printed `/bin/casementctl`.
+# `/bin` is SIP-protected, so that command fails even under sudo. `$$(…)` is what reaches the
+# shell. The directory is worked out the same way README.md does it: Homebrew's prefix when there
+# is one, `~/.local` otherwise, never `/usr/local`, which is owned by root on macOS.
 install: app      ## Copy to /Applications and link the CLI (asks nothing; review first)
 	rm -rf /Applications/Casement.app && cp -R build/Casement.app /Applications/
-	@echo "CLI: ln -sf /Applications/Casement.app/Contents/MacOS/casementctl "$(brew --prefix 2>/dev/null || echo /usr/local)/bin/casementctl""
+	@BIN="$$(brew --prefix 2>/dev/null || echo "$$HOME/.local")/bin"; \
+	echo "CLI: mkdir -p \"$$BIN\" && ln -sf /Applications/Casement.app/Contents/MacOS/casementctl \"$$BIN/casementctl\""
 
 release:          ## Zip, checksum and notes for the newest CHANGELOG version (PUBLISH=1 creates the GitHub release)
 	scripts/release.sh $(if $(PUBLISH),--publish,)
