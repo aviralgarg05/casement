@@ -26,9 +26,15 @@ demo:             ## Launch with demo content (debug build)
 # another: run 38280213005 lost about a hundred event lines, among them the three that named
 # the one test that failed, and left a line reading "Suite MoveToApplicati" with
 # another test's line spliced into it. The test process writes this file itself, one record per
-# test, so a failure is still named when the log has lost it. swift test creates build/ for it,
-# and git ignores that folder already.
+# test, so a failure is still named when the log has lost it. git ignores build/ already.
+#
+# The directory is made first because swift test does not make it: given a path in a folder that
+# is not there it runs the whole suite, then fails at the end with "No such file or directory"
+# and exit 2. Locally build/ is usually left over from an earlier `make app` and the mistake is
+# invisible; on a fresh checkout, which is what CI does, every run fails however green the tests
+# were. That is run 38459963550.
 test:             ## Unit + system tests (swift-testing); results in build/test-results.xml
+	@mkdir -p build
 	swift test $(SWIFT_TEST_FLAGS) --xunit-output build/test-results.xml
 
 e2e: app          ## End-to-end tests against the real app (isolated config, own port)
