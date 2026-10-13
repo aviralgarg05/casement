@@ -54,9 +54,27 @@ jobs:
       # not: the console log above drops lines when a few hundred tests finish at once, and in
       # run 38280213005 the three lines naming the failing test were among the ones it dropped.
       # make test has the test process write this file, which that cannot touch.
+      #
+      # Where it lands is listed first because it has already been wrong once. Run 38465752982
+      # passed, wrote nothing the upload could find, and the log gave no way to tell whether the
+      # file was missing, named differently or somewhere else: the upload only says it found
+      # nothing at the path it was given. SwiftPM writes one file per test harness and spells the
+      # swift-testing one with a suffix on some toolchains, so the search is wider than the one
+      # path and prints what it found either way.
+      - name: Find the test results
+        if: always()
+        run: |
+          echo "xml under the checkout:"
+          find . -name '*.xml' -path '*test*' -not -path './.git/*' -print 2>/dev/null | head -20
+          echo "build/:"
+          ls -la build/ 2>/dev/null || echo "  no build directory"
+
       - name: Keep the test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: test-results
-          path: build/test-results.xml
+          path: |
+            build/*.xml
+            .build/*.xml
+          if-no-files-found: warn
