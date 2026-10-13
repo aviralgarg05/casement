@@ -164,6 +164,20 @@ if [ -n "${SIGN_IDENTITY:-}" ]; then
     verify_zip "$ZIP" || { echo "$STOP" >&2; exit 1; }
     NOTARISED=1
 else
+    # bundle.sh and this script read SIGN_IDENTITY separately, so it can be set for the build and
+    # not for this step. That combination fails in the wrong direction: the app is Developer ID
+    # signed, this branch skips notarisation, and the release goes out un-notarised with nothing
+    # printed and nothing failing. A build meant for release without a Developer ID is ad-hoc, so
+    # anything else here means the variable was lost between the two. Captured rather than piped
+    # into grep: under pipefail a grep that stops reading early turns a match into a failure.
+    SIGNATURE="$(codesign -dv "$APP" 2>&1 || true)"
+    case "$SIGNATURE" in
+        *Signature=adhoc*) ;;
+        *)  echo "Release stopped: $APP is not ad-hoc signed, so it was built with a Developer ID," >&2
+            echo "but SIGN_IDENTITY is not set here, so this release would go out un-notarised." >&2
+            echo "Set SIGN_IDENTITY for this step as well as for the build." >&2
+            exit 1 ;;
+    esac
     echo "Not notarised: macOS will ask users to confirm the first launch (see README)"
 fi
 

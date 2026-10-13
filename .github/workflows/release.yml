@@ -29,9 +29,16 @@ jobs:
         run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
 
       # Developer ID signing and notarisation need a paid Apple Developer account. When there is one,
-      # add the repository secrets named below, uncomment this step, and give the next two steps
-      # `env: { SIGN_IDENTITY: "${{ secrets.SIGN_IDENTITY }}" }`. scripts/release.sh then notarises
-      # with the casement-notary profile, staples, and stops unless spctl accepts the app.
+      # add the repository secrets named below, uncomment this step, and give the "Build Casement.app"
+      # and "Zip and self-check" steps `env: { SIGN_IDENTITY: "${{ secrets.SIGN_IDENTITY }}" }`.
+      # bundle.sh reads it to codesign with the Developer ID, and scripts/release.sh reads it to
+      # notarise with the casement-notary profile, staple, and stop unless spctl accepts the app.
+      # Rename the build step then too, since it is no longer ad-hoc signed.
+      #
+      # These steps are named rather than counted because counting them pointed at the wrong two:
+      # "the next two steps" were Test, where the variable does nothing, and Build, leaving it off
+      # Zip and self-check. Set that way the release goes out Developer ID signed, un-notarised and
+      # green. release.sh now stops rather than let that combination through quietly.
       #
       # - name: Import the Developer ID certificate and notary credentials
       #   env:
