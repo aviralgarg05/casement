@@ -28,7 +28,7 @@ make perf     # must stay within budget
 
 - [ ] `make test` passes, and `make e2e` and `make perf` too if behaviour or timing changed.
 - [ ] For a UI change, `make snapshots` (or `make settings-snapshots`) renders it as intended, and the PR shows before and after images.
-- [ ] `CHANGELOG.md` has a line under the unreleased version.
+- [ ] `CHANGELOG.md` has a line under the `## Unreleased` heading.
 - [ ] Nothing new polls while idle.
 
 ## Adding an integration

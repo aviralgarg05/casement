@@ -15,7 +15,7 @@
 
 ## Checklist
 
-- [ ] `CHANGELOG.md` has a line under the unreleased version
+- [ ] `CHANGELOG.md` has a line under the `## Unreleased` heading
 - [ ] Nothing new polls while idle, and looping animation uses Core Animation
 - [ ] Any new permission sits behind an opt-in setting
 - [ ] No code copied from GPL-licensed apps (see `CONTRIBUTING.md`)

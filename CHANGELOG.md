@@ -1,5 +1,54 @@
 # Changelog
 
+## Unreleased
+
+### Putting `casementctl` on your PATH
+
+The command in the readme linked into `/usr/local/bin`, which is owned by root on macOS. Without
+Homebrew it answered "Permission denied", or "No such file or directory" on a Mac where nothing
+had ever created that folder. It now uses Homebrew's `bin` where there is one and `~/.local/bin`
+otherwise, makes the folder first, and the readme says how to put `~/.local/bin` on `PATH`, which
+macOS does not do for you.
+
+`make install` printed a worse version of the same line. Make reads `$(…)` as one of its own
+variables before the shell ever sees it, so `$(brew --prefix …)` was an undefined variable named
+`brew --prefix …` and expanded to nothing: the command it printed linked into `/bin`, which is
+protected by SIP and fails even under sudo.
+
+### Removing it
+
+The readme now says how to uninstall: disconnect the coding agents first so their hooks come back
+out, then the app, the `casementctl` link, the two folders, the keychain items (including the ones
+saved under the old name, which an upgrade leaves behind), and the permission entries macOS keeps
+after an app is deleted. Nothing in the repository had said any of this.
+
+### Documentation
+
+- SECURITY.md's security model describes the Accessibility grant: what it reads, what it writes,
+  what it never touches, and that each use waits for its own setting. The list covered the local
+  API, the iPhone bridge, `casement://` links, the network, keys and script widgets, and said
+  nothing about the permission macOS warns loudest about.
+- docs/TOOLS.md documents Shortcuts, Weather and the System page. They had one clause between
+  them while the other eight tools had a section each, so counting the sections gave eight tools
+  where the readme says eleven.
+- The architecture diagram is square again. Six of its lines ran three characters past the box,
+  each of them one carrying an identifier that grew when Islet became Casement.
+- docs/RESEARCH.md starts at section 1. It began at section 2 from the point the survey of other
+  apps was dropped, with nothing to say that a section was missing.
+- The readme's picture of the closed island no longer calls all three panels closed: the third is
+  a sneak peek.
+- The readme sent readers to `swift scripts/live-activity-probe.swift`, which ships in this
+  repository and not in the release zip. It now names `casementctl debug menubar` for anyone who
+  installed the app, and says the script needs a clone.
+- "needs macOS 14 or later" says it is tested on macOS 27, like every other platform claim here.
+  macOS 14 is supported by design and has not been run.
+- The last Open Anyway step no longer puts the password prompt after the confirmation, since the
+  order has moved between macOS versions and both are needed either way.
+- Em dashes are out of the readme, the Makefile's header, `casementctl`'s usage text and the
+  Codex integration's comment.
+- This heading. CONTRIBUTING.md and the pull request template both ask for a changelog line
+  "under the unreleased version", and there was no such heading to put one under.
+
 ## 0.4.2 (12 October 2026)
 
 ### Three more ways it could freeze at launch
@@ -94,6 +143,9 @@ Everything moves with it: the app, the two libraries, the `casementctl` command,
 **Nothing is lost on upgrade.** Settings in `~/.config/islet` and everything in `Application Support/Islet`, which is the shelf, timers, to-dos, the note, the teleprompter, stickers and the lyrics cache, are moved into place once, at launch, before anything reads them. API keys live in the login keychain, which a directory move does not touch, so a key saved under the old name is read once from there and saved forward.
 
 ## 0.3.0 (3 October 2026)
+
+*Never released on its own: there is no `v0.3.0` tag and no 0.3.0 download. Everything in this
+section first reached anyone in 0.4.0, which is the earliest release that carries it.*
 
 Casement now covers the Live Activities macOS draws in the menu bar, so each one shows in the island rather than twice, and it reads them properly: two at once are two rows, a pill that names no app is titled by what it says, and a countdown runs in the island instead of waiting on the menu bar. Music and videos playing in a browser show again, the icons beside the song offer every player macOS lists, and the island does far less work while music plays or a coding agent works.
 
