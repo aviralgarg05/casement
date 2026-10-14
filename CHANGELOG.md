@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.3 (14 October 2026)
 
 ### The first run now asks for what Casement needs
 
