@@ -52,8 +52,16 @@ public enum GettingStarted {
     /// What the island cannot do without Accessibility. The window asks for no other permission:
     /// everything else Casement can use belongs to a feature that starts off, and macOS asks for
     /// those as they are switched on.
+    ///
+    /// An earlier revision ended this "Without it the island can do very little", which is not
+    /// true, and overstating what a permission buys is the wrong thing to do in the one window
+    /// whose job is to ask for it honestly. Without the permission the closed island keeps to
+    /// `MenuBarLayoutEngine.unmeasuredWing` and loses the last two of the three readings. Media
+    /// and its controls, timers, the stopwatch, notes, the shelf, the calendar, meetings, the Ask
+    /// box, the iPhone bridge and answering a coding agent's requests all work without it, and the
+    /// last of those is the feature Casement leads with.
     public static let accessibilityNeed =
-        "Casement uses Accessibility to work out how much room it has beside the notch, to mirror a Live Activity from your iPhone, and to tell when a window is full screen. Without it the island can do very little."
+        "Casement uses Accessibility to work out how much room it has beside the notch, to mirror a Live Activity from your iPhone, and to tell when a window is full screen. Without it the closed island keeps to a fixed width rather than the room that is free, and those last two go. Everything else works either way, answering your coding agents\u{2019} requests among it."
 
     /// What the grant covers, shortened from SECURITY.md and saying the same thing. People worry
     /// that Accessibility reads their typing, so the sentence that says it does not is here
@@ -64,4 +72,51 @@ public enum GettingStarted {
     /// One line for a Mac with none of the three agents on it.
     public static let noAgents =
         "None of them has run on this Mac yet. Once one has, connect it in Settings → Coding agents."
+
+    /// What the first run does next, each time the getting started window says where it is.
+    public enum Step: Equatable, Sendable {
+        /// The window is in front of the user, so it is remembered as shown and does not open
+        /// itself at the next launch.
+        case remember
+        /// The window has gone, or never arrived: the island says its piece instead.
+        case peek
+        /// Neither yet.
+        case wait
+    }
+
+    /// Whether ordering the window front has put it in front of the user, and what follows.
+    ///
+    /// An earlier revision asked neither question: it took `makeKeyAndOrderFront` for an answer,
+    /// wrote `gettingStartedShown` there and then, and owed the island's peek to the window's
+    /// `willCloseNotification`. Casement is an accessory app, so `NSApp.activate` cannot always
+    /// take the front from the app the user is working in. The window then stays a background
+    /// window, macOS sweeps it off screen within a second or two without closing it, and the
+    /// first run was spent on a window nobody read while the peek waited for a close that could
+    /// not come. The first run showed nothing at all, where before the window existed it showed
+    /// the peek every time.
+    ///
+    /// - Parameters:
+    ///   - visible: `NSWindow.occlusionState` says some of the window can be seen. It is also
+    ///     false for a fraction of a second after the window is ordered front, before AppKit has
+    ///     settled where the window went, and it dips again while Stage Manager rearranges the
+    ///     screen around a window that has just appeared, which is why it alone cannot say the
+    ///     window has gone. `NSWindow.isVisible` is no use at all here: it stays true for a
+    ///     window that has been swept off screen.
+    ///   - key: the window is the key window, which is the Mac's own answer to whether it put the
+    ///     window in front of the user. It is also what tells a window that has gone from a
+    ///     window that is merely between placements: macOS does not sweep away the key window of
+    ///     the app the user is in, so occlusion dipping while the window still holds the key is
+    ///     the screen settling and not the user losing the window.
+    ///   - seen: the window has already been in front of the user on this launch.
+    ///   - closing: the window is closing.
+    public static func step(visible: Bool, key: Bool, seen: Bool, closing: Bool) -> Step {
+        if closing { return .peek }
+        if visible, key { return .remember }
+        return seen && !visible && !key ? .peek : .wait
+    }
+
+    /// How long the window is given to reach the front before the island says its piece instead
+    /// and the window is left to open itself again at the next launch. Occlusion settles a few
+    /// hundredths of a second after the window is ordered front, so this is generous.
+    public static let appears: TimeInterval = 1.5
 }

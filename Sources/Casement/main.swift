@@ -125,18 +125,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         NSAppleEventManager.shared().setEventHandler(self, andSelector: #selector(handleURL(_:reply:)),
                                                      forEventClass: AEEventClass(kInternetEventClass), andEventID: AEEventID(kAEGetURL))
+        // Casement's first run on this Mac: the getting started window, and then the island's
+        // "Casement is ready" peek once that window has had its say. The peek points at the
+        // notch, and nothing should point at the notch while a window stands in front of it. A
+        // demo run always looks like a first run, because its config is a scratch folder, so it
+        // keeps the peek on its own and never gets the window.
+        let firstRun = !demo
+            && GettingStarted.opensAtLaunch(hasConfig: model.hasConfigFile, shown: model.settings.gettingStartedShown)
+
         // Opened straight from Downloads, so macOS runs a temporary copy: offer to move to
-        // Applications once the island is up.
-        if !demo {
+        // Applications once the island is up. On a first run the offer waits for the window and
+        // the peek. An earlier revision dispatched it unconditionally, and since the window is
+        // ordered front synchronously below and this runs on the next pass, the launch a release
+        // download actually takes (macOS translocates a .app unzipped into Downloads, which is
+        // the one moment `AppLocation.offersMove` offers at launch) put an app-modal alert on top
+        // of the getting started window a moment after it opened. Accepting it quits and reopens
+        // from Applications, where config.json is already there, so that first run ended with
+        // neither the window nor the peek.
+        if !demo, !firstRun {
             DispatchQueue.main.async { MainActor.assumeIsolated { _ = AppActions.offerMoveToApplications(.launch) } }
         }
 
-        // Casement's first run on this Mac: the getting started window, and then the island's
-        // "Casement is ready" peek once that window closes. The peek points at the notch, and
-        // nothing should point at the notch while a window stands in front of it. A demo run
-        // always looks like a first run, because its config is a scratch folder, so it keeps the
-        // peek on its own and never gets the window.
-        if !demo, GettingStarted.opensAtLaunch(hasConfig: model.hasConfigFile, shown: model.settings.gettingStartedShown) {
+        if firstRun {
+            offerMoveWhenFirstRunIsDone = true
             showGettingStarted(thenPeekAtTheIsland: true)
         } else if !model.hasConfigFile {
             model.showFirstRunHint()
@@ -510,33 +521,84 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Whether the island's first run peek is still owed, once the getting started window goes.
     private var peekAfterGettingStarted = false
 
+    /// Whether the getting started window has been in front of the user on this launch, which is
+    /// `GettingStarted.step`'s `seen`. Ordering a window front is not the same thing.
+    private var gettingStartedSeen = false
+
+    /// Whether the offer to move to Applications is waiting for the first run to finish, so an
+    /// app-modal alert never lands on top of the getting started window.
+    private var offerMoveWhenFirstRunIsDone = false
+
     /// Open the getting started window, or bring back the one already open.
     /// - Parameter thenPeekAtTheIsland: at launch, so the island's first run peek plays when the
-    ///   window closes instead of behind it. Reopening it from Settings → About owes no peek.
+    ///   window has had its say instead of behind it. Reopening it from Settings → About owes no
+    ///   peek, and is remembered already.
     func showGettingStarted(thenPeekAtTheIsland: Bool = false) {
         if thenPeekAtTheIsland { peekAfterGettingStarted = true }
         if gettingStartedWindow == nil {
             let window = GettingStartedWindow.make(model: model)
-            // The window is kept after closing, so this observer is added once and stands for
-            // every time it is opened again.
-            NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window,
-                                                   queue: .main) { [weak self] _ in
-                MainActor.assumeIsolated { self?.gettingStartedClosed() }
+            // The window is kept after closing, so these observers are added once and stand for
+            // every time it is opened again. Occlusion is what says the window has gone without
+            // closing, which is what happens when it cannot hold the front; `willClose` alone
+            // left the peek owed to something that never came.
+            let nc = NotificationCenter.default
+            for name in [NSWindow.willCloseNotification, NSWindow.didChangeOcclusionStateNotification,
+                         NSWindow.didBecomeKeyNotification] {
+                nc.addObserver(forName: name, object: window, queue: .main) { [weak self] note in
+                    MainActor.assumeIsolated {
+                        self?.gettingStartedMoved(closing: note.name == NSWindow.willCloseNotification)
+                    }
+                }
             }
             gettingStartedWindow = window
         }
-        // Written as it opens, not as it closes: someone who closes it at once has seen it, and
-        // a window that came back every launch would be worse than one they can ask for again.
-        model.markGettingStartedShown()
         NSApp.activate(ignoringOtherApps: true)
         gettingStartedWindow?.makeKeyAndOrderFront(nil)
+        // Nothing in AppKit answers "did the user see it" straight away: occlusion has not
+        // settled for a fraction of a second yet, and `isVisible` is true even for a window that
+        // has been swept off screen. So the window is given `GettingStarted.appears` to reach the
+        // front, and if it has not, the island says its piece and the window is left to try again
+        // at the next launch rather than counting as read.
+        DispatchQueue.main.asyncAfter(deadline: .now() + GettingStarted.appears) { [weak self] in
+            MainActor.assumeIsolated { self?.gettingStartedNeverArrived() }
+        }
     }
 
-    private func gettingStartedClosed() {
+    /// The getting started window became key, changed what can be seen of it, or is closing.
+    private func gettingStartedMoved(closing: Bool) {
+        guard let window = gettingStartedWindow else { return }
+        switch GettingStarted.step(visible: window.occlusionState.contains(.visible), key: window.isKeyWindow,
+                                   seen: gettingStartedSeen, closing: closing) {
+        case .remember:
+            gettingStartedSeen = true
+            model.markGettingStartedShown()
+        case .peek:
+            // Long enough for the window to finish going away; the island has been there all along.
+            firstRunHasHadItsSay(peekAfter: 0.4)
+        case .wait:
+            break
+        }
+    }
+
+    /// `GettingStarted.appears` has passed. A window that reached the front has been remembered
+    /// by now, so this only has anything to do when it did not.
+    private func gettingStartedNeverArrived() {
+        guard !gettingStartedSeen else { return }
+        firstRunHasHadItsSay(peekAfter: 0)
+    }
+
+    /// The first run has said what it has to say, whether that was the window closing, the window
+    /// going off screen, or the window never reaching the front: the island's peek plays now, and
+    /// the offer to move to Applications follows once the peek has gone.
+    private func firstRunHasHadItsSay(peekAfter delay: TimeInterval) {
         guard peekAfterGettingStarted else { return }
         peekAfterGettingStarted = false
-        // Long enough for the window to finish going away; the island has been there all along.
-        model.showFirstRunHint(after: 0.4)
+        model.showFirstRunHint(after: delay)
+        guard offerMoveWhenFirstRunIsDone else { return }
+        offerMoveWhenFirstRunIsDone = false
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay + FirstRunHint.ttl) {
+            MainActor.assumeIsolated { _ = AppActions.offerMoveToApplications(.launch) }
+        }
     }
 
     /// Open Settings on `page` at the row `anchor` names, or on the page it showed last.

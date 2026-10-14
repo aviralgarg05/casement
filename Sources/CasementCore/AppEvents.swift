@@ -475,6 +475,10 @@ public enum WelcomeBack {
 public enum FirstRunHint {
     public static let id = "welcome"
 
+    /// How long the peek stays. Named because the delegate waits it out before the offer to move
+    /// to Applications, so the two never talk over one another on a first run.
+    public static let ttl: TimeInterval = 6
+
     /// - Parameters:
     ///   - hotkey: the open shortcut as config.json writes it; left out when there is none.
     ///   - hoverToOpen: resting the pointer opens the island; otherwise a click does.
@@ -485,7 +489,7 @@ public enum FirstRunHint {
         let subtitle = Hotkey.parse(hotkey).map { "\(gesture), or press \($0.label)" } ?? gesture
         return ActivitySpec(
             id: id, source: "system", title: "Casement is ready", subtitle: subtitle,
-            icon: .symbol("sparkles"), state: .info, tint: "white", priority: .normal, ttl: 6, sneak: true
+            icon: .symbol("sparkles"), state: .info, tint: "white", priority: .normal, ttl: ttl, sneak: true
         )
     }
 }

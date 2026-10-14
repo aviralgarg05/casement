@@ -8,8 +8,9 @@ import Testing
         // The second launch: config.json is there now, whatever the setting says.
         #expect(!GettingStarted.opensAtLaunch(hasConfig: true, shown: false))
         #expect(!GettingStarted.opensAtLaunch(hasConfig: true, shown: true))
-        // config.json deleted by hand, or a dotfiles repo that doesn't carry it, after the
-        // window was shown: the setting is what remembers, so it stays shut.
+        // Both have to be false. This last pair cannot happen on a Mac, since the setting lives
+        // in config.json and goes with it, so it pins the rule rather than standing for a case:
+        // what a dotfiles repo that doesn't carry config.json actually gets is the window again.
         #expect(!GettingStarted.opensAtLaunch(hasConfig: false, shown: true))
     }
 
@@ -62,7 +63,59 @@ import Testing
         // The two things behind a setting are named with their settings, not glossed over.
         #expect(reach.contains("only with Replace the system volume and brightness display on"))
         #expect(reach.contains("only with Type emoji where you\u{2019}re typing on"))
-        #expect(GettingStarted.accessibilityNeed.contains("beside the notch"))
+        let need = GettingStarted.accessibilityNeed
+        #expect(need.contains("beside the notch"))
+        // What the permission buys, and no more. An earlier revision ended "Without it the island
+        // can do very little", which is not true: the closed island falls back to
+        // `MenuBarLayoutEngine.unmeasuredWing` and loses the Live Activity and full screen
+        // readings, and everything else, answering a coding agent among it, works without it.
+        #expect(!need.contains("very little"))
+        #expect(need.contains("Everything else works either way"))
+        #expect(need.contains("coding agents"))
+    }
+
+    /// The window is given a moment to reach the front, and what it does then.
+    ///
+    /// Casement is an accessory app, so `NSApp.activate` cannot always take the front from the app
+    /// the user is working in, and a window that stays in the background is swept off screen a
+    /// second or two later without ever closing. An earlier revision read `makeKeyAndOrderFront`
+    /// as the user having seen the window: it wrote `gettingStartedShown` there and owed the
+    /// island's peek to `willCloseNotification`, so that first run showed neither the window nor
+    /// the peek, and no second chance at either.
+    @Test func theWindowCountsAsSeenOnlyWhenItIsInFrontOfTheUser() {
+        // Ordered front and the Mac put it there: that is the one case that is remembered.
+        #expect(GettingStarted.step(visible: true, key: true, seen: false, closing: false) == .remember)
+        // Occlusion has not settled yet, a fraction of a second after being ordered front. Not
+        // visible before it has ever been seen is AppKit still placing the window, not a window
+        // that has gone, and reading it as gone would fire the peek behind a window about to
+        // appear.
+        #expect(GettingStarted.step(visible: false, key: true, seen: false, closing: false) == .wait)
+        // Occlusion dips again while Stage Manager rearranges the screen around the window it has
+        // just put up, a second or so after it was seen. An earlier revision read that as the
+        // window having gone and committed the peek behind a window that was still on screen,
+        // which is the thing the peek waits for the window to avoid. The window still holds the
+        // key, and macOS does not sweep away the key window of the app the user is in.
+        #expect(GettingStarted.step(visible: false, key: true, seen: true, closing: false) == .wait)
+        // On screen but not key: another app holds the front, so the Mac has not put this window
+        // in front of anyone. Nothing is remembered and nothing is given up on yet.
+        #expect(GettingStarted.step(visible: true, key: false, seen: false, closing: false) == .wait)
+        // Seen, then another app took the front and the window was swept off screen without ever
+        // closing: this is what `willCloseNotification` alone missed, and it is the moment the
+        // island's peek has been waiting for.
+        #expect(GettingStarted.step(visible: false, key: false, seen: true, closing: false) == .peek)
+        // Closing, whether it was read or not.
+        #expect(GettingStarted.step(visible: true, key: true, seen: true, closing: true) == .peek)
+        #expect(GettingStarted.step(visible: false, key: false, seen: false, closing: true) == .peek)
+        // Back in front after being swept away: remembered again, which is the same answer.
+        #expect(GettingStarted.step(visible: true, key: true, seen: true, closing: false) == .remember)
+    }
+
+    /// The window has this long to reach the front before the island says its piece instead. Long
+    /// enough that occlusion, which settles within a few hundredths of a second, has answered;
+    /// short enough that the peek still looks like part of the launch.
+    @Test func theWindowIsGivenAMomentToReachTheFront() {
+        #expect(GettingStarted.appears > 0.5)
+        #expect(GettingStarted.appears < FirstRunHint.ttl)
     }
 
     /// House style, which the window's words share with every other user-facing string: no em

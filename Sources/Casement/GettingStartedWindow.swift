@@ -23,6 +23,10 @@ enum GettingStartedWindow {
     static let width: CGFloat = 480
 
     static func make(model: AppModel) -> NSWindow {
+        // `sizingOptions` is left at `.preferredContentSize`, where the app's other two hosting
+        // controllers set it to `[]`: Settings and the island panels each have a size of their
+        // own to keep, and this window has none. Its height is however many agent rows this Mac
+        // has plus whatever a row has had to say about one, so the content is what sets it.
         let host = NSHostingController(rootView: GettingStartedView(model: model))
         let w = NSWindow(contentViewController: host)
         w.title = "Getting started"
@@ -73,7 +77,16 @@ struct GettingStartedView: View {
         // never calls `onDisappear`, and this window is kept so it can be opened again, so the
         // window's own visibility is what says whether anything still needs reading.
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-            if host.window?.isVisible == true { refresh() }
+            refreshIfShown()
+        }
+        // Casement being active already is not a change, so the notification above never arrives
+        // when this window is reopened from Settings → About during the launch it first appeared
+        // on, which is exactly the session the window exists for: it came back saying "Not
+        // allowed yet" next to an Allow button for a permission granted in between. The Settings
+        // pages that check things again, `PermissionsSettings` and `AISettingsView`, both watch
+        // for their own window becoming key for the same reason.
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { note in
+            if let window = host.window, note.object as? NSWindow === window { refreshIfShown() }
         }
         .sheet(item: $pending) { p in
             AgentConnectSheet(plan: p.plan) {
@@ -128,6 +141,20 @@ struct GettingStartedView: View {
             Text("Casement can show what Claude Code, Codex and Cursor are doing and let you answer their requests from the notch.")
                 .font(.callout)
                 .fixedSize(horizontal: false, vertical: true)
+            // Agents reach Casement through the same door as scripts, and it is on by default, so
+            // this is only here for someone who shut it and then opened this window again. The
+            // Coding agents page says the same thing in the same words: without it, connecting an
+            // agent here would turn a dot green and reach nothing.
+            if !model.settings.apiEnabled {
+                AccessRow(text: "Casement isn\u{2019}t accepting requests from apps, so connected agents can\u{2019}t reach it.",
+                          button: "Turn on") {
+                    model.settings.apiEnabled = true
+                    // The Settings window watches `settings` and saves for its own pages; this
+                    // window is not one of them, so it says so itself or the door shuts again at
+                    // the next launch.
+                    model.settingsEdited()
+                }
+            }
             if let connections {
                 let offered = GettingStarted.agents(connections)
                 if offered.isEmpty {
@@ -165,6 +192,11 @@ struct GettingStartedView: View {
         NSScreen.screens.contains { $0.safeAreaInsets.top > 0 }
     }
 
+    /// Check again only while the window is on screen.
+    private func refreshIfShown() {
+        if host.window?.isVisible == true { refresh() }
+    }
+
     private func refresh() {
         PermissionProbe.status(of: .accessibility, readDownloads: false) { update($0) }
         var found: [CodingAgent: AgentConnection] = [:]
@@ -173,6 +205,11 @@ struct GettingStartedView: View {
                                                      executable: CodingAgentsSettings.executable, wait: wait)
         }
         connections = found
+        // Which agents point at a casementctl that is no longer there, which the Coding agents
+        // page also asks for here. Connecting an agent from this window answers it for that
+        // agent, and nothing else would notice: it is what puts the attention dot on Settings'
+        // sidebar, so leaving it stale marks a page that has nothing left to say.
+        model.checkAgentHooks()
     }
 
     /// A permission granted while this window was open lets switched-on features start now

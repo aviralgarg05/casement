@@ -17,7 +17,8 @@ how to open it, asks for Accessibility with a plain account of what that grant c
 does not, and offers to connect whichever of the three coding agents have actually run on this
 Mac, showing the exact change to each agent's settings file before anything is written. Nothing on
 it is required, closing it changes nothing, and Settings → About opens it again whenever you want
-it. The island's peek now waits for the window to close instead of playing behind it.
+it. The island's peek now follows the window rather than playing behind it, and still plays on
+its own on a Mac where the window cannot hold the front long enough to be read.
 
 ### Putting `casementctl` on your PATH
 
