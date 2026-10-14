@@ -12,6 +12,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private lazy var menuBarCovers = MenuBarCoverController(model: model)
     private var statusItem: NSStatusItem?
     private var settingsWindow: NSWindow?
+    /// The getting started window, kept after it closes so Settings → About reopens this one.
+    private var gettingStartedWindow: NSWindow?
     /// The page Settings shows, kept for the session.
     private let settingsNavigation = SettingsNavigation()
     /// Status menu items for scripts and config, shown only while Option is held.
@@ -45,6 +47,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if !carried.isEmpty { Log.files.info("carried over from the previous name: \(carried.joined(separator: ", "))") }
 
         AppActions.openSettingsHandler = { [weak self] page, anchor in self?.showSettings(page, at: anchor) }
+        AppActions.openGettingStartedHandler = { [weak self] in self?.showGettingStarted() }
         EditMenu.install()
         IslandContrast.increased = NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
         model.onMenuBarCoversChanged = { [weak self] in self?.menuBarCovers.update() }
@@ -126,6 +129,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Applications once the island is up.
         if !demo {
             DispatchQueue.main.async { MainActor.assumeIsolated { _ = AppActions.offerMoveToApplications(.launch) } }
+        }
+
+        // Casement's first run on this Mac: the getting started window, and then the island's
+        // "Casement is ready" peek once that window closes. The peek points at the notch, and
+        // nothing should point at the notch while a window stands in front of it. A demo run
+        // always looks like a first run, because its config is a scratch folder, so it keeps the
+        // peek on its own and never gets the window.
+        if !demo, GettingStarted.opensAtLaunch(hasConfig: model.hasConfigFile, shown: model.settings.gettingStartedShown) {
+            showGettingStarted(thenPeekAtTheIsland: true)
+        } else if !model.hasConfigFile {
+            model.showFirstRunHint()
         }
     }
 
@@ -491,6 +505,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func openConfig() {
         model.saveSettings()
         NSWorkspace.shared.open(CasementPaths.configFile)
+    }
+
+    /// Whether the island's first run peek is still owed, once the getting started window goes.
+    private var peekAfterGettingStarted = false
+
+    /// Open the getting started window, or bring back the one already open.
+    /// - Parameter thenPeekAtTheIsland: at launch, so the island's first run peek plays when the
+    ///   window closes instead of behind it. Reopening it from Settings → About owes no peek.
+    func showGettingStarted(thenPeekAtTheIsland: Bool = false) {
+        if thenPeekAtTheIsland { peekAfterGettingStarted = true }
+        if gettingStartedWindow == nil {
+            let window = GettingStartedWindow.make(model: model)
+            // The window is kept after closing, so this observer is added once and stands for
+            // every time it is opened again.
+            NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window,
+                                                   queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.gettingStartedClosed() }
+            }
+            gettingStartedWindow = window
+        }
+        // Written as it opens, not as it closes: someone who closes it at once has seen it, and
+        // a window that came back every launch would be worse than one they can ask for again.
+        model.markGettingStartedShown()
+        NSApp.activate(ignoringOtherApps: true)
+        gettingStartedWindow?.makeKeyAndOrderFront(nil)
+    }
+
+    private func gettingStartedClosed() {
+        guard peekAfterGettingStarted else { return }
+        peekAfterGettingStarted = false
+        // Long enough for the window to finish going away; the island has been there all along.
+        model.showFirstRunHint(after: 0.4)
     }
 
     /// Open Settings on `page` at the row `anchor` names, or on the page it showed last.

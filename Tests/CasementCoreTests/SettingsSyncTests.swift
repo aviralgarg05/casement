@@ -11,7 +11,9 @@ import Testing
     /// Every place that saves without applying, with how often: the settings machinery itself,
     /// and writing config.json before showing it.
     static let savesOnly: [String: Int] = [
-        "AppModel.swift|saveSettings()": 1,  // saveAndApplySettings
+        // saveAndApplySettings, and markGettingStartedShown, where nothing on screen follows
+        // the setting being written.
+        "AppModel.swift|saveSettings()": 2,
         "AppModel.swift|self?.saveSettings()": 1,  // settingsEdited, which posts next
         "AppModel.swift|if !FileManager.default.fileExists(atPath: CasementPaths.configFile.path) { saveSettings() }": 1,
         "AppModel.swift|if next != fresh { saveSettings() }": 1,  // config.json read, already applied

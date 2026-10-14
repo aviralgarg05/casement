@@ -129,6 +129,9 @@ final class AppModel {
     /// Casement comes to the front and after an Allow. Settings shows it from here, so a page left
     /// open follows a change made in System Settings.
     var accessibilityTrusted = MediaKeyInterceptor.hasAccessibility
+    /// Whether config.json was already there when `start()` ran. False is Casement's first run
+    /// on this Mac, which is what the getting started window and the island's peek go on.
+    private(set) var hasConfigFile = true
     /// Whether this macOS shows Live Activities in the menu bar (26 and later). Snapshots draw
     /// the page as an older macOS shows it too.
     var liveActivitiesSupported = MenuBarLiveActivityMonitor.isSupported
@@ -342,10 +345,11 @@ final class AppModel {
         tools.stopwatch.start()
         loadMeetings()
         startEventSources()
-        // No config.json yet: Casement's first run on this Mac (watching the file writes one).
-        let firstRun = !FileManager.default.fileExists(atPath: CasementPaths.configFile.path)
+        // No config.json yet: Casement's first run on this Mac. Read before `watchSettingsFile`,
+        // which writes one. What the first run then shows is the delegate's to decide, since it
+        // owns the getting started window and the island's peek waits for that window to close.
+        hasConfigFile = FileManager.default.fileExists(atPath: CasementPaths.configFile.path)
         watchSettingsFile()
-        if firstRun { showFirstRunHint() }
         // Once per launch: hooks left pointing at a casementctl that moved fail silently.
         checkAgentHooks()
         // Back from System Settings, calendar access may have changed; it starts at once.
@@ -1534,8 +1538,13 @@ final class AppModel {
     }
 
     /// Once, a moment after the first launch, when the island is on screen: how to open it.
-    private func showFirstRunHint() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
+    ///
+    /// - Parameter delay: a second at launch, so the island has settled where it belongs before
+    ///   anything points at it. The delegate passes a shorter one when the peek is following the
+    ///   getting started window instead of the launch: the island has been on screen all along,
+    ///   and the pause is only long enough for the window to finish going away.
+    func showFirstRunHint(after delay: TimeInterval = 1) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
             MainActor.assumeIsolated {
                 guard let self else { return }
                 let notched = NSScreen.screens.contains { $0.safeAreaInsets.top > 0 }
@@ -1543,6 +1552,14 @@ final class AppModel {
                                                            notched: notched))
             }
         }
+    }
+
+    /// The getting started window has opened, so it doesn't open itself at the next launch.
+    /// Saved but not applied: nothing on screen follows this setting.
+    func markGettingStartedShown() {
+        guard !settings.gettingStartedShown else { return }
+        settings.gettingStartedShown = true
+        saveSettings()
     }
 
     private func welcomeBack() {

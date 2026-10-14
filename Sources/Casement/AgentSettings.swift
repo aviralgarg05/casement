@@ -94,20 +94,11 @@ struct CodingAgentsSettings: View {
 
     private func preview(_ agent: CodingAgent) {
         notes[agent] = nil
-        // From a temporary copy macOS made of a download, the hooks would point nowhere after
-        // the next launch: offer to move to Applications first.
-        switch AppActions.offerMoveToApplications(.connecting(agent.title)) {
-        case .moving: return
-        case .declined:
-            notes[agent] = "Move Casement to Applications first, so \(agent.title) can keep finding it."
-            return
-        case .notNeeded: break
-        }
-        do {
-            let plan = try AgentHookSetup.plan(agent, home: CasementPaths.home, executable: Self.executable, wait: wait)
-            if plan.isUpToDate { refresh() } else { pending = PendingConnection(plan: plan) }
-        } catch {
-            notes[agent] = Self.message(for: error, agent: agent)
+        switch AgentConnect.plan(agent, wait: wait) {
+        case .confirm(let plan): pending = PendingConnection(plan: plan)
+        case .upToDate: refresh()
+        case .moving: break
+        case .note(let note): notes[agent] = note
         }
     }
 
@@ -152,7 +143,42 @@ struct CodingAgentsSettings: View {
     }
 }
 
-private struct PendingConnection: Identifiable {
+/// Planning a connection, shared by Settings → Coding agents and the getting started window so
+/// that there is one path to an agent's settings files and not two. Writes nothing.
+@MainActor
+enum AgentConnect {
+    enum Outcome {
+        /// Confirm it (`AgentConnectSheet`), then write it with `AgentHookSetup.apply`.
+        case confirm(AgentHookPlan)
+        /// Casement's hooks are already there and already right: nothing to confirm.
+        case upToDate
+        /// Casement is moving itself to Applications and opening again from there.
+        case moving
+        /// Why nothing can be planned, as a sentence for the row.
+        case note(String)
+    }
+
+    /// What connecting `agent` would change. Casement running from a temporary copy macOS made
+    /// of a download is offered the move to Applications first: hooks written from there call a
+    /// `casementctl` that is gone by the next launch.
+    static func plan(_ agent: CodingAgent, wait: Int) -> Outcome {
+        switch AppActions.offerMoveToApplications(.connecting(agent.title)) {
+        case .moving: return .moving
+        case .declined: return .note("Move Casement to Applications first, so \(agent.title) can keep finding it.")
+        case .notNeeded: break
+        }
+        do {
+            let plan = try AgentHookSetup.plan(agent, home: CasementPaths.home, executable: CodingAgentsSettings.executable,
+                                               wait: wait)
+            return plan.isUpToDate ? .upToDate : .confirm(plan)
+        } catch {
+            return .note(AgentConnection.problemText(for: error, agent: agent))
+        }
+    }
+}
+
+/// Shared with the getting started window, which shows the same confirmation sheet.
+struct PendingConnection: Identifiable {
     let id = UUID()
     let plan: AgentHookPlan
 }

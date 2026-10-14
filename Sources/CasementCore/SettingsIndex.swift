@@ -510,6 +510,10 @@ public enum SettingsIndex {
         SettingsEntry("permissions.\(kind.rawValue)", .permissions, kind.title, keywords: ["privacy", "allow", "access"])
     } + [
         SettingsEntry("about.version", .about, "Version", keywords: ["licence", "license", "open source"]),
+        // Not keyworded "welcome": that word belongs to the welcome back splash on the
+        // Notifications page, and two answers to one word would help nobody.
+        SettingsEntry("about.gettingStarted", .about, "Getting started",
+                      keywords: ["first run", "setup", "set up", "onboarding", "again"]),
         SettingsEntry("about.quit", .about, "Quit", keywords: ["exit", "close the app", "stop"]),
         SettingsEntry("about.feedback", .about, "Send feedback",
                       keywords: ["bug", "problem", "feature request", "idea", "suggest", "GitHub", "issue", "help", "contact"]),

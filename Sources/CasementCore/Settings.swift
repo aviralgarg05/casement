@@ -512,6 +512,11 @@ public struct CasementSettings: Codable, Equatable, Sendable {
     /// Global shortcut that opens the Ask box ready to type ("" to disable).
     public var askHotkey = "ctrl+option+a"
 
+    /// Whether the getting started window has opened on this Mac (`GettingStarted`). Set as the
+    /// window opens, not as it closes, so one dismissed straight away doesn't come back at the
+    /// next launch; Settings → About opens it again whenever it is wanted.
+    public var gettingStartedShown = false
+
     public init() {}
 
     // Allowed ranges, shared by `sanitized()` and the Settings sliders.

@@ -1172,6 +1172,18 @@ struct AboutSettings: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 20)
             }
+            // The window that opens on Casement's first run on a Mac. It sits here because this
+            // is the page that answers "what is this app", and because a one-shot a user closed
+            // by accident and can never see again is worse than none.
+            Section {
+                LabeledContent {
+                    Button("Show it again") { AppActions.openGettingStarted() }
+                } label: {
+                    Text("Getting started")
+                    Text("Where the island is, the one permission Casement asks for, and connecting your coding agents.")
+                }
+                .settingsAnchor("about.gettingStarted")
+            }
             Section { FeedbackRow() }
             // The status item can end up behind the notch or in the menu bar's overflow, so
             // Casement can also be quit from here, the island's right-click menu and its More menu.

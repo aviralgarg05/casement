@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### The first run now asks for what Casement needs
+
+The whole first run was a six second peek in the island saying how to open it. Nothing ever asked
+for Accessibility, which was only requested from two Settings pages, so someone who never opened
+Settings had an island that could not measure the space beside the notch, could not mirror a Live
+Activity from an iPhone and could not tell when a window was full screen, and was never told why.
+Nothing offered to connect Claude Code, Codex or Cursor either: Casement only re-checked hooks
+that were already in place, so the feature it leads with had to be found by someone who did not
+yet know it was there.
+
+A small window now opens the first time Casement runs on a Mac. It says where the island is and
+how to open it, asks for Accessibility with a plain account of what that grant covers and what it
+does not, and offers to connect whichever of the three coding agents have actually run on this
+Mac, showing the exact change to each agent's settings file before anything is written. Nothing on
+it is required, closing it changes nothing, and Settings → About opens it again whenever you want
+it. The island's peek now waits for the window to close instead of playing behind it.
+
 ### Putting `casementctl` on your PATH
 
 The command in the readme linked into `/usr/local/bin`, which is owned by root on macOS. Without
