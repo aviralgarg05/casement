@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+### Permissions that never finished checking
+
+Settings → Permissions showed "Checking…" against the Downloads folder and both automation rows,
+and left it there for as long as the window stayed open. Asking macOS whether Casement may
+automate an app that is open does not return: measured against Spotify while Spotify was running,
+the call was still inside itself after thirty seconds, where the same call against Music, which
+was closed, answered in under a millisecond. Every permission check shared one serial queue, so
+that single call parked the rest behind it.
+
+The checks now run alongside each other rather than in a line, and any check that has not answered
+within two seconds gives the row a provisional "Asked on first use", which is both true and what
+will happen. The real answer replaces it whenever it arrives. A check that is showing the user a
+macOS prompt has no deadline, because that one takes as long as the user takes.
+
 ## 0.4.3 (14 October 2026)
 
 ### The first run now asks for what Casement needs
